@@ -10,10 +10,7 @@ import com.github.alexthe666.iceandfire.entity.ai.VillagerAIFearUntamed;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsCommon;
 import com.github.alexthe666.iceandfire.entity.props.*;
-import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
-import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
-import com.github.alexthe666.iceandfire.entity.util.IHearsSiren;
-import com.github.alexthe666.iceandfire.entity.util.IVillagerFear;
+import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.item.*;
 import com.github.alexthe666.iceandfire.message.MessagePlayerHitMultipart;
 import com.github.alexthe666.iceandfire.message.MessageSwingArm;
@@ -30,6 +27,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.CombatEntry;
 import net.minecraft.world.damagesource.CombatTracker;
@@ -510,6 +508,27 @@ public class ServerEvents {
         }
         if (AiDebug.isEnabled() && event.getEntityLiving() instanceof Mob && AiDebug.contains((Mob) event.getEntityLiving())) {
             AiDebug.logData();
+        }
+    }
+
+    @SubscribeEvent
+    public void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific event) {
+        Player player = event.getPlayer();
+        ItemStack itemStack = player.getItemInHand(event.getHand());
+        Entity target = event.getTarget();
+        if (target instanceof IResurrectable resurrectable && resurrectable.canResurrectBy(itemStack)) {
+            if (resurrectable.resurrect() && !itemStack.isEmpty()) {
+                itemStack.shrink(resurrectable.getResurrectCost());
+//                // Resurrect taming
+//                if (target instanceof TamableAnimal tamableAnimal) {
+//                    tamableAnimal.tame(player);
+//                } else if (target instanceof AbstractHorse abstractHorse) {
+//                    abstractHorse.tameWithName(player);
+//                }
+
+                event.setCancellationResult(InteractionResult.SUCCESS);
+                event.setCanceled(true);
+            }
         }
     }
 
