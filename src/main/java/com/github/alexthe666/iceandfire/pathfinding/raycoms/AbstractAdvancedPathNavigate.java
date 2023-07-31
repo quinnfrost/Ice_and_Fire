@@ -26,6 +26,12 @@ public abstract class AbstractAdvancedPathNavigate extends GroundPathNavigation 
     @Nullable
     protected BlockPos destination;
     protected double walkSpeedFactor = 1.0D;
+
+    @Nullable
+    public BlockPos getOriginalDestination() {
+        return originalDestination;
+    }
+
     @Nullable
     protected BlockPos originalDestination;
 

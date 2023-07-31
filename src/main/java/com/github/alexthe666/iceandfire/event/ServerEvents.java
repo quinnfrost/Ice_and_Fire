@@ -7,6 +7,10 @@ import com.github.alexthe666.iceandfire.entity.*;
 import com.github.alexthe666.iceandfire.entity.ai.AiDebug;
 import com.github.alexthe666.iceandfire.entity.ai.EntitySheepAIFollowCyclops;
 import com.github.alexthe666.iceandfire.entity.ai.VillagerAIFearUntamed;
+import com.github.alexthe666.iceandfire.entity.behavior.FlightFollowing;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonFlightUtils;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
 import com.github.alexthe666.iceandfire.entity.props.*;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
@@ -18,23 +22,29 @@ import com.github.alexthe666.iceandfire.message.MessageSwingArm;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
 import com.github.alexthe666.iceandfire.misc.IafDamageRegistry;
 import com.github.alexthe666.iceandfire.misc.IafTagRegistry;
-import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.AbstractPathJob;
 import com.github.alexthe666.iceandfire.world.gen.WorldGenFireDragonCave;
 import com.github.alexthe666.iceandfire.world.gen.WorldGenIceDragonCave;
 import com.github.alexthe666.iceandfire.world.gen.WorldGenLightningDragonCave;
 import com.google.common.base.Predicate;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.CombatEntry;
 import net.minecraft.world.damagesource.CombatTracker;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.WitherSkeleton;
@@ -42,9 +52,9 @@ import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.AbstractChestBlock;
@@ -56,8 +66,7 @@ import net.minecraft.world.level.storage.loot.entries.LootItem;
 import net.minecraft.world.level.storage.loot.entries.LootPoolEntryContainer;
 import net.minecraft.world.level.storage.loot.predicates.LootItemRandomChanceCondition;
 import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.*;
 import net.minecraftforge.event.LootTableLoadEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.*;
@@ -403,6 +412,52 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityUseItem(PlayerInteractEvent.RightClickItem event) {
+        // Force debug target to change their destination
+        if (event.getPlayer() != null && event.getItemStack().getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
+            Player player = event.getPlayer();
+            if (player.level instanceof ServerLevel) {
+                Entity debugTarget = ((ServerLevel) player.level).getEntity(AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(), UUID.randomUUID()));
+                if (debugTarget instanceof PathfinderMob target && debugTarget instanceof IAllMethodINeed entity) {
+                    if (event.getHand() == InteractionHand.MAIN_HAND) {
+//                        HitResult rayTrace = player.level.clip(new ClipContext(player.getEyePosition(1.0F), player.getEyePosition(1.0f).add(player.getLookAngle().multiply(256f, 256f, 256f)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+                        BlockHitResult blockHitResult = DragonBehaviorUtils.getTargetBlock(player, 10, 1.0f, ClipContext.Block.COLLIDER);
+
+                        target.getBrain().setMemory(
+                                MemoryModuleType.WALK_TARGET,
+                                new WalkTarget(
+                                        new BlockPos(blockHitResult.getLocation()),
+                                        1.0f,
+                                        1
+                                )
+                        );
+//                        entity.walkTo(new WalkTarget(blockHitResult.getBlockPos(), 1.0f, 0));
+                    } else if (event.getHand() == InteractionHand.OFF_HAND) {
+                        target.getBrain().setMemory(
+                                MemoryModuleType.WALK_TARGET,
+                                new WalkTarget(
+                                        new BlockPos(player.getPosition(1.0f)),
+                                        1.0f,
+                                        1
+                                )
+                        );
+//                        entity.flightTo(new WalkTarget(player.getPosition(1.0f), 1.0f, 0));
+                    }
+                }
+                else if (debugTarget instanceof PathfinderMob target) {
+                    if (event.getHand() == InteractionHand.MAIN_HAND) {
+                        BlockHitResult blockHitResult = DragonBehaviorUtils.getTargetBlock(player, 10, 1.0f, ClipContext.Block.COLLIDER);
+
+                        target.getNavigation().moveTo(
+                                blockHitResult.getBlockPos().getX(),
+                                blockHitResult.getBlockPos().getY(),
+                                blockHitResult.getBlockPos().getZ(),
+                                1.0f
+                        );
+                    }
+                }
+            }
+        }
+
         if (event.getEntityLiving() instanceof Player && event.getEntityLiving().getXRot() > 87 && event.getEntityLiving().getVehicle() != null && event.getEntityLiving().getVehicle() instanceof EntityDragonBase) {
             ((EntityDragonBase) event.getEntityLiving().getVehicle()).mobInteract((Player) event.getEntityLiving(), event.getHand());
         }
@@ -410,11 +465,42 @@ public class ServerEvents {
             event.setResult(Event.Result.DENY);
             ((EntityDragonBase) event.getEntityLiving()).mobInteract(event.getPlayer(), event.getHand());
         }
+
     }
 
+    Vec3 lastPos;
     @SubscribeEvent
     public void onEntityUpdate(LivingEvent.LivingUpdateEvent event) {
-
+        // Display debug data
+        if (event.getEntityLiving() instanceof Player player && !player.getLevel().isClientSide) {
+            Entity debugTarget = ((ServerLevel) player.level).getEntity(AbstractPathJob.trackingMap.getOrDefault(player, UUID.randomUUID()));
+            if (debugTarget instanceof PathfinderMob target) {
+//                player.displayClientMessage(new TextComponent("Activity: " + target.getBrain().getActiveActivities() + " | Task: " + target.getBrain().getRunningBehaviors()),
+//                                            true);
+//                if (FlightFollowing.debug!=null)
+//                player.displayClientMessage(new TextComponent(String.format("Follow target: (%.2f, %.2f, %.2f)",FlightFollowing.debug.x, FlightFollowing.debug.y, FlightFollowing.debug.z) + " | On ground? " + DragonBehaviorUtils.shouldHoverAt(
+//                                                    target, new WalkTarget(FlightFollowing.debug, 1.0f, 0))),
+//                                            true
+//                );
+                player.displayClientMessage(new TextComponent(String.format("GetGround: (%.2f)",
+                                                                            DragonFlightUtils.getGround(player.getLevel(),
+                                                                                                        player.position()
+                                                                            ).y
+                                            ) + " | IsEmpty? " + player.level.isEmptyBlock(new BlockPos(DragonFlightUtils.getGround(player.getLevel(),
+                                                                                                                                      player.position()
+                                            ))) + " | " + player.level.getBlockState(new BlockPos(DragonFlightUtils.getGround(player.getLevel(),
+                                                                                                                        player.position()
+                                            )))),
+                                            true
+                );
+            } else {
+                if (lastPos != null) {
+//                    player.displayClientMessage(new TextComponent("Speed: " + player.position().distanceTo(lastPos)),
+//                                                true);
+                }
+                lastPos = player.position();
+            }
+        }
         if (ChainProperties.hasChainData(event.getEntityLiving())) {
             ChainProperties.tickChain(event.getEntityLiving());
         }
@@ -449,6 +535,46 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        // Debug
+        if (event.getPlayer().isShiftKeyDown() && event.getItemStack().is(IafItemRegistry.DRAGON_DEBUG_STICK.get())) {
+            if (event.getTarget() instanceof PathfinderMob debugTarget) {
+                if (!event.getWorld().isClientSide) {
+                    if (AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(), UUID.randomUUID()).equals(event.getTarget().getUUID())) {
+                        AbstractPathJob.trackingMap.remove(event.getPlayer());
+                        IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()), (ServerPlayer) event.getPlayer());
+                    } else {
+                        AbstractPathJob.trackingMap.put(event.getPlayer(), event.getTarget().getUUID());
+                    }
+                    event.getPlayer().displayClientMessage(new TextComponent(event.getTarget().toString()), true);
+                }
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            }
+        }
+        if (event.getItemStack().is(IafItemRegistry.CREATIVE_DRAGON_MEAL.get())) {
+            if (event.getTarget() instanceof TamableAnimal tamableAnimal && event.getEntityLiving() instanceof Player player) {
+                tamableAnimal.setTame(true);
+                tamableAnimal.tame(player);
+//                tamableAnimal.setHunger(tamableAnimal.getHunger() + 20);
+//                tamableAnimal.heal(Math.min(tamableAnimal.getHealth(), (int) (tamableAnimal.getMaxHealth() / 2)));
+//                tamableAnimal.playSound(SoundEvents.GENERIC_EAT, tamableAnimal.getSoundVolume(), tamableAnimal.getVoicePitch());
+//                tamableAnimal.spawnItemCrackParticles(stack.getItem());
+//                tamableAnimal.spawnItemCrackParticles(Items.BONE);
+//                tamableAnimal.spawnItemCrackParticles(Items.BONE_MEAL);
+//                tamableAnimal.eatFoodBonus(stack);
+//                if (!player.isCreative()) {
+//                    stack.shrink(1);
+//                }
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            } else if (event.getTarget() instanceof AbstractHorse horse && event.getEntityLiving() instanceof Player player) {
+                horse.setTamed(true);
+                horse.tameWithName(player);
+
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            }
+        }
         // Handle chain removal
         if (event.getTarget() instanceof LivingEntity) {
             LivingEntity target = (LivingEntity) event.getTarget();
@@ -461,19 +587,19 @@ public class ServerEvents {
                 event.setCancellationResult(InteractionResult.SUCCESS);
             }
         }
-        // Handle debug path render
-        if (!event.getWorld().isClientSide() && event.getTarget() instanceof Mob && event.getItemStack().getItem() == Items.STICK) {
-            if (AiDebug.isEnabled())
-                AiDebug.addEntity((Mob) event.getTarget());
-            if (Pathfinding.isDebug()) {
-                if (AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(), UUID.randomUUID()).equals(event.getTarget().getUUID())) {
-                    AbstractPathJob.trackingMap.remove(event.getPlayer());
-                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()), (ServerPlayer) event.getPlayer());
-                } else {
-                    AbstractPathJob.trackingMap.put(event.getPlayer(), event.getTarget().getUUID());
-                }
-            }
-        }
+//        // Handle debug path render
+//        if (!event.getWorld().isClientSide() && event.getTarget() instanceof Mob && event.getItemStack().getItem() == Items.STICK) {
+//            if (AiDebug.isEnabled())
+//                AiDebug.addEntity((Mob) event.getTarget());
+//            if (Pathfinding.isDebug()) {
+//                if (AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(), UUID.randomUUID()).equals(event.getTarget().getUUID())) {
+//                    AbstractPathJob.trackingMap.remove(event.getPlayer());
+//                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()), (ServerPlayer) event.getPlayer());
+//                } else {
+//                    AbstractPathJob.trackingMap.put(event.getPlayer(), event.getTarget().getUUID());
+//                }
+//            }
+//        }
     }
 
     @SubscribeEvent
@@ -495,6 +621,36 @@ public class ServerEvents {
     }
 
     public static void onLeftClick(final Player playerEntity, final ItemStack stack) {
+        if (stack.getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
+            if (!playerEntity.level.isClientSide) {
+                Entity debugTarget = ((ServerLevel) playerEntity.level).getEntity(AbstractPathJob.trackingMap.getOrDefault(playerEntity, UUID.randomUUID()));
+                if (debugTarget instanceof PathfinderMob target) {
+//                    HitResult rayTrace = playerEntity.level.clip(new ClipContext(playerEntity.getEyePosition(1.0F), playerEntity.getEyePosition(1.0f).add(playerEntity.getLookAngle().multiply(256f, 256f, 256f)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, playerEntity));
+                    HitResult hitResult = DragonBehaviorUtils.getTargetBlockOrEntity(
+                            playerEntity,
+                            256,
+                            entity -> entity instanceof LivingEntity
+                    );
+                    switch (hitResult.getType()) {
+
+                        case MISS -> {
+
+                        }
+                        case BLOCK -> {
+
+                        }
+                        case ENTITY -> {
+//                            target.getBrain().setMemory(
+//                                    MemoryModuleType.ATTACK_TARGET,
+//                                    (LivingEntity) (((EntityHitResult) hitResult).getEntity())
+//                            );
+                            target.setTarget((LivingEntity) (((EntityHitResult) hitResult).getEntity()));
+                        }
+                    }
+
+                }
+            }
+        }
         if (stack.getItem() == IafItemRegistry.GHOST_SWORD.get()) {
             ItemGhostSword.spawnGhostSwordEntity(stack, playerEntity);
         }
