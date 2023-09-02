@@ -10,6 +10,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -109,8 +110,15 @@ public class DragonBehaviorUtils {
         return blockRayTraceResult;
     }
 
-    public static int getTargetThreatScore(Mob estimator, Entity target) {
-        return 0;
+    public static float getTargetThreatScore(Mob estimator, Entity target) {
+        float threat = estimator.getBbWidth() * estimator.getBbHeight() - target.getBbWidth() * target.getBbHeight();
+
+        if (estimator instanceof TamableAnimal tamed && tamed.isTame()) {
+            LivingEntity owner = tamed.getOwner();
+
+        }
+
+        return threat;
     }
 
     public static void setAirborneState(LivingEntity livingEntity, AirborneState state) {
@@ -278,4 +286,5 @@ public class DragonBehaviorUtils {
         FLY,
         LANDING
     }
+
 }

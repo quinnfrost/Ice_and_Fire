@@ -1,8 +1,8 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonFlightUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.PathfinderMob;
@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 
-public class RandomStrollAir<E extends PathfinderMob & IAllMethodINeed> extends RandomStroll {
+public class RandomStrollAir<E extends PathfinderMob & IFlyableBehavior> extends RandomStroll {
     public RandomStrollAir(float pSpeedModifier) {
         super(pSpeedModifier);
     }
@@ -32,7 +32,7 @@ public class RandomStrollAir<E extends PathfinderMob & IAllMethodINeed> extends 
 
     @Override
     protected boolean checkExtraStartConditions(ServerLevel pLevel, PathfinderMob pOwner) {
-        if (pOwner instanceof IAllMethodINeed && ((E) pOwner).getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+        if (pOwner instanceof IFlyableBehavior && ((E) pOwner).getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
             return false;
         }
         return super.checkExtraStartConditions(pLevel, pOwner);
@@ -40,7 +40,7 @@ public class RandomStrollAir<E extends PathfinderMob & IAllMethodINeed> extends 
 
     @Nullable
     protected Vec3 getTargetPos(PathfinderMob pPathfinder) {
-        if (pPathfinder instanceof IAllMethodINeed) {
+        if (pPathfinder instanceof IFlyableBehavior) {
             Vec3 randomPos = AirAndWaterRandomPos.getPos(
                     pPathfinder,
                     this.maxHorizontalDistance,

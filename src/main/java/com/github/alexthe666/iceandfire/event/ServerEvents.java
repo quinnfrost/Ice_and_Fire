@@ -7,10 +7,8 @@ import com.github.alexthe666.iceandfire.entity.*;
 import com.github.alexthe666.iceandfire.entity.ai.AiDebug;
 import com.github.alexthe666.iceandfire.entity.ai.EntitySheepAIFollowCyclops;
 import com.github.alexthe666.iceandfire.entity.ai.VillagerAIFearUntamed;
-import com.github.alexthe666.iceandfire.entity.behavior.FlightFollowing;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonFlightUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import com.github.alexthe666.iceandfire.entity.props.*;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
@@ -417,7 +415,7 @@ public class ServerEvents {
             Player player = event.getPlayer();
             if (player.level instanceof ServerLevel) {
                 Entity debugTarget = ((ServerLevel) player.level).getEntity(AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(), UUID.randomUUID()));
-                if (debugTarget instanceof PathfinderMob target && debugTarget instanceof IAllMethodINeed entity) {
+                if (debugTarget instanceof PathfinderMob target && debugTarget instanceof IFlyableBehavior entity) {
                     if (event.getHand() == InteractionHand.MAIN_HAND) {
 //                        HitResult rayTrace = player.level.clip(new ClipContext(player.getEyePosition(1.0F), player.getEyePosition(1.0f).add(player.getLookAngle().multiply(256f, 256f, 256f)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
                         BlockHitResult blockHitResult = DragonBehaviorUtils.getTargetBlock(player, 10, 1.0f, ClipContext.Block.COLLIDER);
@@ -475,24 +473,24 @@ public class ServerEvents {
         if (event.getEntityLiving() instanceof Player player && !player.getLevel().isClientSide) {
             Entity debugTarget = ((ServerLevel) player.level).getEntity(AbstractPathJob.trackingMap.getOrDefault(player, UUID.randomUUID()));
             if (debugTarget instanceof PathfinderMob target) {
-//                player.displayClientMessage(new TextComponent("Activity: " + target.getBrain().getActiveActivities() + " | Task: " + target.getBrain().getRunningBehaviors()),
-//                                            true);
+                player.displayClientMessage(new TextComponent("Activity: " + target.getBrain().getActiveActivities() + " | Task: " + target.getBrain().getRunningBehaviors()),
+                                            true);
 //                if (FlightFollowing.debug!=null)
 //                player.displayClientMessage(new TextComponent(String.format("Follow target: (%.2f, %.2f, %.2f)",FlightFollowing.debug.x, FlightFollowing.debug.y, FlightFollowing.debug.z) + " | On ground? " + DragonBehaviorUtils.shouldHoverAt(
 //                                                    target, new WalkTarget(FlightFollowing.debug, 1.0f, 0))),
 //                                            true
 //                );
-                player.displayClientMessage(new TextComponent(String.format("GetGround: (%.2f)",
-                                                                            DragonFlightUtils.getGround(player.getLevel(),
-                                                                                                        player.position()
-                                                                            ).y
-                                            ) + " | IsEmpty? " + player.level.isEmptyBlock(new BlockPos(DragonFlightUtils.getGround(player.getLevel(),
-                                                                                                                                      player.position()
-                                            ))) + " | " + player.level.getBlockState(new BlockPos(DragonFlightUtils.getGround(player.getLevel(),
-                                                                                                                        player.position()
-                                            )))),
-                                            true
-                );
+//                player.displayClientMessage(new TextComponent(String.format("GetGround: (%.2f)",
+//                                                                            DragonFlightUtils.getGround(player.getLevel(),
+//                                                                                                        player.position()
+//                                                                            ).y
+//                                            ) + " | IsEmpty? " + player.level.isEmptyBlock(new BlockPos(DragonFlightUtils.getGround(player.getLevel(),
+//                                                                                                                                      player.position()
+//                                            ))) + " | " + player.level.getBlockState(new BlockPos(DragonFlightUtils.getGround(player.getLevel(),
+//                                                                                                                        player.position()
+//                                            )))),
+//                                            true
+//                );
             } else {
                 if (lastPos != null) {
 //                    player.displayClientMessage(new TextComponent("Speed: " + player.position().distanceTo(lastPos)),

@@ -9,7 +9,10 @@ import net.minecraft.world.entity.ai.sensing.Sensor;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 
-// Reference: AxolotlAttackablesSensor
+/**
+ * @see net.minecraft.world.entity.ai.sensing.AxolotlAttackablesSensor
+ */
+
 public class SensorHippogryphHuntable extends NearestVisibleLivingEntitySensor {
     protected int randomInterval;
     public SensorHippogryphHuntable(int randomInterval) {
@@ -26,6 +29,9 @@ public class SensorHippogryphHuntable extends NearestVisibleLivingEntitySensor {
         return this.isClose(pAttacker, pTarget) && (this.isHostileTarget(pTarget) || this.isHuntTarget(pAttacker, pTarget)) && Sensor.isEntityAttackable(pAttacker, pTarget);
     }
     private boolean isHuntTarget(LivingEntity pAttacker, LivingEntity pTarget) {
+        if (pAttacker.getBrain().hasMemoryValue(MemoryModuleType.HAS_HUNTING_COOLDOWN)) {
+            return false;
+        }
         if (this.randomInterval > 0 && pAttacker.getRandom().nextInt(this.randomInterval) != 0) {
             return false;
         }

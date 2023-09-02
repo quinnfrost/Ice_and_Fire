@@ -1,7 +1,7 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.BlockPos;
@@ -15,7 +15,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 
-public abstract class FlightScene<E extends Mob & IAllMethodINeed> extends Behavior<E> {
+public abstract class FlightScene<E extends Mob & IFlyableBehavior> extends Behavior<E> {
     protected boolean isLoop;
     protected int pathIndex = 0;
     protected Queue<Pair<Vec3, Integer>> flightPath;

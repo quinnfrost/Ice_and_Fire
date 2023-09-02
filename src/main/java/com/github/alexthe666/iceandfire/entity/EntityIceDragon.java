@@ -5,6 +5,7 @@ import com.github.alexthe666.citadel.animation.IAnimatedEntity;
 import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.api.event.DragonFireEvent;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.github.alexthe666.iceandfire.enums.EnumParticles;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
@@ -193,7 +194,7 @@ public class EntityIceDragon extends EntityDragonBase {
         super.aiStep();
         LivingEntity attackTarget = this.getTarget();
         if (!level.isClientSide && this.isInLava() && this.isAllowedToTriggerFlight() && !this.isModelDead()) {
-            this.setHovering(true);
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
             this.setInSittingPose(false);
             this.setOrderedToSit(false);
             this.flyHovering = 0;
@@ -216,8 +217,7 @@ public class EntityIceDragon extends EntityDragonBase {
                     doHurtTarget(attackTarget);
                     usingGroundAttack = true;
                     randomizeAttacks();
-                    setFlying(false);
-                    setHovering(false);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
                 }
             }
         }
@@ -230,8 +230,7 @@ public class EntityIceDragon extends EntityDragonBase {
         }
         if (this.isInMaterialWater() && !this.isSwimming() && (!this.isFlying() && !this.isHovering() || this.flyTicks > 100)) {
             this.setSwimming(true);
-            this.setHovering(false);
-            this.setFlying(false);
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
             this.flyTicks = 0;
             this.ticksSwiming = 0;
         }
@@ -242,7 +241,7 @@ public class EntityIceDragon extends EntityDragonBase {
         if (this.isSwimming() && !this.isModelDead()) {
             ticksSwiming++;
             if ((this.isInMaterialWater() || this.isOverWater()) && (ticksSwiming > 4000 || this.getTarget() != null && this.isInWater() != this.getTarget().isInWater()) && !this.isBaby() && !this.isHovering() && !this.isFlying()) {
-                this.setHovering(true);
+                this.setAirborneState(DragonBehaviorUtils.AirborneState.TAKEOFF);
                 this.jumpFromGround();
                 this.setDeltaMovement(this.getDeltaMovement().add(0.0D, 0.8D, 0.0D));
                 this.setSwimming(false);
@@ -706,7 +705,7 @@ public class EntityIceDragon extends EntityDragonBase {
 
     @Override
     public boolean useFlyingPathFinder() {
-        return (this.isFlying() || this.isInMaterialWater()) && this.getControllingPassenger() == null;
+        return (super.useFlyingPathFinder() || this.isInMaterialWater()) && this.getControllingPassenger() == null;
     }
 
     @Override

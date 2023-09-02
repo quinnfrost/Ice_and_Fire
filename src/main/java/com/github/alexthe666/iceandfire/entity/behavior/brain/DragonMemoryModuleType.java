@@ -30,6 +30,7 @@ public class DragonMemoryModuleType {
     public enum NavigationType {
         ANY,
         WALK,
+        HOVER,
         FLY
     }
 

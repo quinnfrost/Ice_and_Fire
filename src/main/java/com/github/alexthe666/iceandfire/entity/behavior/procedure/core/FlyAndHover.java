@@ -1,8 +1,8 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure.core;
 
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.AdvancedPathNavigate;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.core.BlockPos;
@@ -18,24 +18,26 @@ import net.minecraft.world.level.pathfinder.Path;
 import javax.annotation.Nullable;
 import java.util.Optional;
 
-public class WalkAndStay<E extends Mob & IAllMethodINeed> extends Behavior<E> {
+public class FlyAndHover<E extends Mob & IFlyableBehavior> extends Behavior<E> {
     private static final int MAX_COOLDOWN_BEFORE_RETRYING = 40;
     // Path stuck cool down
     private int remainingCooldown;
     @Nullable
     private Path path;
-    // For identifying new target
     @Nullable
     private BlockPos lastTargetPos;
     private float speedModifier;
     private AdvancedPathNavigate navigator;
+    private boolean shouldLandOnTheWay = false;
 
-    public WalkAndStay() {
+    public FlyAndHover() {
         this(150, 250);
     }
 
-    public WalkAndStay(int pMinDuration, int pMaxDuration) {
+    public FlyAndHover(int pMinDuration, int pMaxDuration) {
         super(ImmutableMap.of(
+                DragonMemoryModuleType.FORBID_FLYING, MemoryStatus.REGISTERED,
+
                 MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, MemoryStatus.REGISTERED,
                 MemoryModuleType.PATH, MemoryStatus.VALUE_ABSENT,
                 MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_PRESENT,
@@ -43,38 +45,26 @@ public class WalkAndStay<E extends Mob & IAllMethodINeed> extends Behavior<E> {
         ), pMinDuration, pMaxDuration);
     }
 
-    // Whether behavior should start
     protected boolean checkExtraStartConditions(ServerLevel pLevel, E pOwner) {
-        if (this.remainingCooldown > 0) {
-            --this.remainingCooldown;
-            return false;
-        } else {
-            Brain<?> brain = pOwner.getBrain();
-            WalkTarget walktarget = brain.getMemory(MemoryModuleType.WALK_TARGET).get();
-            // Have a target and we haven't there already
-            if (!DragonBehaviorUtils.isNavigatorArrived(pOwner, walktarget.getTarget().currentBlockPosition())) {
-                this.lastTargetPos = walktarget.getTarget().currentBlockPosition();
-
-                return pOwner.canMove()
-                        && this.shouldUseWalkingNavigator(pOwner);
-            }
-            // We're already there
-            else {
-                if (pOwner.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
-                    brain.eraseMemory(MemoryModuleType.WALK_TARGET);
-                }
-                return false;
-            }
+        Brain<?> brain = pOwner.getBrain();
+        WalkTarget walktarget = brain.getMemory(MemoryModuleType.WALK_TARGET).get();
+        // Have a target and we haven't there already
+        if (!DragonBehaviorUtils.hasArrived(pOwner, walktarget.getTarget().currentBlockPosition(), 2.0d)) {
+            this.lastTargetPos = walktarget.getTarget().currentBlockPosition();
+            return pOwner.getNavigation() instanceof AdvancedPathNavigate
+                    && pOwner.canMove()
+                    && this.shouldUseFlyingNavigator(pOwner);
         }
+
+        return false;
     }
 
-    // Can behavior continues. Called every AI tick
     protected boolean canStillUse(ServerLevel pLevel, E pEntity, long pGameTime) {
         if (this.lastTargetPos != null) {
             Optional<WalkTarget> optional = pEntity.getBrain().getMemory(MemoryModuleType.WALK_TARGET);
-            return this.shouldUseWalkingNavigator(pEntity)
+
+            return this.shouldUseFlyingNavigator(pEntity)
                     && pEntity.canMove()
-                    && !pEntity.getNavigation().isDone()
                     && optional.isPresent()
                     && !DragonBehaviorUtils.reachedTarget(pEntity, optional.get());
         } else {
@@ -90,7 +80,13 @@ public class WalkAndStay<E extends Mob & IAllMethodINeed> extends Behavior<E> {
 
         pEntity.getBrain().getMemory(MemoryModuleType.WALK_TARGET).ifPresent(walkTarget -> {
             if (DragonBehaviorUtils.reachedTarget(pEntity, walkTarget)) {
+                if (!DragonBehaviorUtils.shouldHoverAt(pEntity, walkTarget) && pEntity.canLand()) {
+                    pEntity.land();
+                } else {
+                    pEntity.hover();
+                }
                 pEntity.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
+                pEntity.getBrain().eraseMemory(MemoryModuleType.PATH);
                 pEntity.getBrain().eraseMemory(DragonMemoryModuleType.PREFERRED_NAVIGATION_TYPE);
             }
         });
@@ -102,34 +98,50 @@ public class WalkAndStay<E extends Mob & IAllMethodINeed> extends Behavior<E> {
         this.navigator = (AdvancedPathNavigate) pEntity.getNavigation();
 
         pEntity.getBrain().getMemory(MemoryModuleType.WALK_TARGET).ifPresent(walkTarget -> {
-            if (DragonBehaviorUtils.shouldHoverAt(pEntity, walkTarget) && pEntity.canFly()) {
+            shouldLandOnTheWay = DragonBehaviorUtils.shouldHoverAt(pEntity, walkTarget) && pEntity.getAirborneState() == DragonBehaviorUtils.AirborneState.FLY;
+            if (DragonBehaviorUtils.shouldFlyToTarget(pEntity, walkTarget)) {
                 pEntity.takeoff();
-            } else {
-                pEntity.walkTo(walkTarget);
             }
+            pEntity.flightTo(walkTarget);
         });
+
     }
 
     protected void tick(ServerLevel pLevel, E pOwner, long pGameTime) {
-        if (pLevel.isEmptyBlock(pOwner.getBrain().getMemory(MemoryModuleType.WALK_TARGET).get().getTarget().currentBlockPosition())
-                && DragonBehaviorUtils.isNavigatorFailedToReachTarget(pOwner) && pOwner.canFly()) {
-            pOwner.takeoff();
-            return;
-        }
+        Path path = pOwner.getNavigation().getPath();
+        Brain<?> brain = pOwner.getBrain();
 
         if (this.path == null && this.navigator.getPath() != null) {
             this.path = this.navigator.getPath();
         }
 
-        Brain<?> brain = pOwner.getBrain();
-        if (this.lastTargetPos != null) {
-            WalkTarget walktarget = brain.getMemory(MemoryModuleType.WALK_TARGET).get();
-            if (walktarget.getTarget().currentBlockPosition().distSqr(this.lastTargetPos) > 4.0D) {
-                this.lastTargetPos = walktarget.getTarget().currentBlockPosition();
-                this.start(pLevel, pOwner, pGameTime);
+        pOwner.getBrain().getMemory(MemoryModuleType.WALK_TARGET).ifPresent(walkTarget -> {
+            // Target is over-air
+            if (DragonBehaviorUtils.shouldHoverAt(pOwner, walkTarget)
+                    && DragonBehaviorUtils.reachedTarget(pOwner, walkTarget)) {
+                pOwner.setAirborneState(DragonBehaviorUtils.AirborneState.HOVER);
+            }
+            // Target is on ground
+            else {
+                if (!DragonBehaviorUtils.shouldHoverAt(pOwner, new WalkTarget(pOwner, 1.0f, 0))
+                        && pOwner.getAirborneState() == DragonBehaviorUtils.AirborneState.FLY
+                        && pOwner.canLand()) {
+                    pOwner.land();
+                }
             }
 
-        }
+            if (this.path != null && !this.path.canReach() && this.navigator.isDone()) {
+                this.start(pLevel, pOwner, pGameTime);
+            }
+            if (this.lastTargetPos != null) {
+                if (walkTarget.getTarget().currentBlockPosition().distSqr(this.lastTargetPos) > 4.0D) {
+                    this.lastTargetPos = walkTarget.getTarget().currentBlockPosition();
+                    this.start(pLevel, pOwner, pGameTime);
+                }
+
+            }
+
+        });
     }
 
     @Override
@@ -137,8 +149,9 @@ public class WalkAndStay<E extends Mob & IAllMethodINeed> extends Behavior<E> {
         return super.timedOut(pGameTime);
     }
 
-    protected boolean shouldUseWalkingNavigator(E entity) {
-        return !entity.getBrain().getMemory(DragonMemoryModuleType.FORBID_WALKING).orElse(false) &&
-                (entity.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED || !entity.canFly());
+    protected boolean shouldUseFlyingNavigator(E entity) {
+        return !entity.getBrain().getMemory(DragonMemoryModuleType.FORBID_FLYING).orElse(false)
+                && (entity.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED || !entity.canLand());
     }
+
 }

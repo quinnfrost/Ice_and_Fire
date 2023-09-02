@@ -10,6 +10,7 @@ import com.github.alexthe666.iceandfire.world.IafWorldRegistry;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.WorldGenLevel;
@@ -62,7 +63,7 @@ public class WorldGenLightningDragonRoosts extends Feature<NoneFeatureConfigurat
             dragon.setHealth(dragon.getMaxHealth());
             dragon.setVariant(new Random().nextInt(4));
             dragon.absMoveTo(position.getX() + 0.5, 1 + worldIn.getHeightmapPos(Heightmap.Types.WORLD_SURFACE_WG, position).getY() + 1.5, position.getZ() + 0.5, rand.nextFloat() * 360, 0);
-            dragon.homePos = new HomePosition(position, worldIn.getLevel());
+            dragon.setHomePos(GlobalPos.of(worldIn.getLevel().dimension(), position));
             dragon.hasHomePosition = true;
             dragon.setHunger(50);
             dragon.setInSittingPose(true);

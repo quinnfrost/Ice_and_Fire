@@ -1,16 +1,12 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
 import com.github.alexthe666.iceandfire.entity.EntityHippogryph;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
-import net.minecraft.world.entity.LivingEntity;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import net.minecraft.world.entity.ai.behavior.StartAttacking;
 
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.function.Predicate;
-
-public class HippogryphRandomHunt<E extends EntityHippogryph & IAllMethodINeed> extends StartAttacking<E> {
+@Deprecated
+public class HippogryphRandomHunt<E extends EntityHippogryph & IFlyableBehavior> extends StartAttacking<E> {
     public HippogryphRandomHunt() {
         super(
                 e -> {

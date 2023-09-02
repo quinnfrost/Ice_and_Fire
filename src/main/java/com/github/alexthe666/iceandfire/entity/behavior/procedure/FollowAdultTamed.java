@@ -1,4 +1,4 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.valueproviders.UniformInt;
@@ -14,7 +14,7 @@ import java.util.function.Function;
 public class FollowAdultTamed<E extends TamableAnimal> extends BabyFollowAdult<E> {
     private static final UniformInt ADULT_FOLLOW_RANGE = UniformInt.of(5, 16);
     public FollowAdultTamed() {
-        this(ADULT_FOLLOW_RANGE, livingEntity -> 0.6f);
+        this(ADULT_FOLLOW_RANGE, livingEntity -> 0.8f);
     }
     public FollowAdultTamed(UniformInt pFollowRange, Function<LivingEntity, Float> pSpeedModifier) {
         super(pFollowRange, pSpeedModifier);

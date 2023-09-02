@@ -5,6 +5,7 @@ import com.github.alexthe666.citadel.animation.IAnimatedEntity;
 import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.api.event.DragonFireEvent;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.github.alexthe666.iceandfire.enums.EnumParticles;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
@@ -190,8 +191,7 @@ public class EntityFireDragon extends EntityDragonBase {
                     doHurtTarget(attackTarget);
                     usingGroundAttack = true;
                     randomizeAttacks();
-                    setFlying(false);
-                    setHovering(false);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
                 }
             }
         }

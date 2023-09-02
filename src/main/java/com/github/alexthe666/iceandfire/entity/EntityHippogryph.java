@@ -6,11 +6,12 @@ import com.github.alexthe666.citadel.animation.IAnimatedEntity;
 import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.entity.behavior.BehaviorHippogryph;
+import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonSchedule;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonSensorType;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.CustomMoveController;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.enums.EnumHippogryphTypes;
 import com.github.alexthe666.iceandfire.inventory.ContainerHippogryph;
@@ -77,10 +78,9 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.EnumSet;
-import java.util.Optional;
 import java.util.Random;
 
-public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnimatedEntity, IDragonFlute, IVillagerFear, IAnimalFear, IDropArmor, IFlyingMount, ICustomMoveController, IAllMethodINeed {
+public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnimatedEntity, IDragonFlute, IVillagerFear, IAnimalFear, IDropArmor, IFlyingMount, ICustomMoveController, IFlyableBehavior {
 
     private static final int FLIGHT_CHANCE_PER_TICK = 1200;
     private static final EntityDataAccessor<Integer> VARIANT = SynchedEntityData.defineId(EntityHippogryph.class, EntityDataSerializers.INT);
@@ -184,6 +184,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
             MemoryModuleType.TEMPTATION_COOLDOWN_TICKS,
             MemoryModuleType.IS_TEMPTED,
 
+            MemoryModuleType.HAS_HUNTING_COOLDOWN,
             MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM,
 
             MemoryModuleType.HOME,
@@ -193,7 +194,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 
     );
     private static final ImmutableList<SensorType<? extends Sensor<? super EntityHippogryph>>> SENSOR_TYPES = ImmutableList.of(
-            SensorType.NEAREST_LIVING_ENTITIES,
+            DragonSensorType.NEARBY_LIVING_ENTITIES,
             DragonSensorType.NEAREST_ADULT_TAMED,
 
             DragonSensorType.OWNER_HURT_BY_TARGET_SENSOR,
@@ -230,6 +231,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 
     private void registerBrainGoals(Brain<EntityHippogryph> brain) {
         BehaviorHippogryph.registerActivities(brain);
+        brain.setSchedule(DragonSchedule.HIPPOGRYPH);
         brain.setCoreActivities(ImmutableSet.of(Activity.CORE));
         brain.setDefaultActivity(Activity.IDLE);
         brain.useDefaultActivity();
@@ -478,13 +480,13 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
     }
 
     @Override
-    public void hoverAt(WalkTarget walkTarget) {
+    public void hoverTo(WalkTarget walkTarget) {
 
     }
 
     @Override
     public boolean canLand() {
-        if (!IAllMethodINeed.super.canLand()) {
+        if (!IFlyableBehavior.super.canLand()) {
             return false;
         }
         return !brain.getMemory(DragonMemoryModuleType.FORBID_WALKING).orElse(false)
@@ -494,7 +496,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 
     @Override
     public boolean canFly() {
-        if (!IAllMethodINeed.super.canFly()) {
+        if (!IFlyableBehavior.super.canFly()) {
             return false;
         }
         return !brain.getMemory(DragonMemoryModuleType.FORBID_FLYING).orElse(false)
@@ -1609,14 +1611,17 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
     }
 
     public void switchNavigator(boolean onLand) {
-        if (onLand) {
+        this.switchNavigator(onLand ? DragonMemoryModuleType.NavigationType.WALK : DragonMemoryModuleType.NavigationType.FLY);
+    }
+
+    public void switchNavigator(DragonMemoryModuleType.NavigationType navigationType) {
+        if (navigationType == DragonMemoryModuleType.NavigationType.WALK) {
             this.moveControl = new CustomMoveController.BasicMoveControl(this);
             this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.CLIMBING);
             this.isLandNavigator = true;
         } else {
             this.moveControl = new EntityHippogryph.FlyMoveHelper(this);
             this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
-//            this.navigation = new TestFlyingNavigation(this, this.level);
             this.isLandNavigator = false;
         }
     }
@@ -1636,6 +1641,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         newNavigator.setCanFloat(true);
         newNavigator.getNodeEvaluator().setCanOpenDoors(true);
 
+        // Fixme: 真的要这个吗？
         newNavigator.getPathingOptions().setCanClimb(false);
         return newNavigator;
     }

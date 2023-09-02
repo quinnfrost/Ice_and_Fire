@@ -10,7 +10,14 @@ import com.github.alexthe666.iceandfire.api.event.GenericGriefEvent;
 import com.github.alexthe666.iceandfire.block.IDragonProof;
 import com.github.alexthe666.iceandfire.client.model.IFChainBuffer;
 import com.github.alexthe666.iceandfire.client.model.util.LegSolverQuadruped;
-import com.github.alexthe666.iceandfire.entity.ai.*;
+import com.github.alexthe666.iceandfire.entity.behavior.BehaviorDragonFrost;
+import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
+import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonSchedule;
+import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonSensorType;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.CustomDragonFlightManager;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.CustomMoveController;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import com.github.alexthe666.iceandfire.entity.props.ChainProperties;
 import com.github.alexthe666.iceandfire.entity.props.MiscProperties;
 import com.github.alexthe666.iceandfire.entity.tile.TileEntityDragonforgeInput;
@@ -28,9 +35,12 @@ import com.github.alexthe666.iceandfire.pathfinding.raycoms.IPassabilityNavigato
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.PathingStuckHandler;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.ICustomSizeNavigator;
 import com.github.alexthe666.iceandfire.world.DragonPosWorldData;
-import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.mojang.serialization.Dynamic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -55,16 +65,18 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.sensing.Sensor;
+import net.minecraft.world.entity.ai.sensing.SensorType;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -89,10 +101,11 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
-public abstract class EntityDragonBase extends TamableAnimal implements IPassabilityNavigator, ISyncMount, IFlyingMount, IMultipartEntity, IAnimatedEntity, IDragonFlute, IDeadMob, IVillagerFear, IAnimalFear, IDropArmor, IHasCustomizableAttributes, ICustomSizeNavigator, ICustomMoveController, ContainerListener {
+public abstract class EntityDragonBase extends TamableAnimal implements IPassabilityNavigator, ISyncMount, IFlyingMount, IMultipartEntity, IAnimatedEntity, IDragonFlute, IDeadMob, IVillagerFear, IAnimalFear, IDropArmor, IHasCustomizableAttributes, ICustomSizeNavigator, ICustomMoveController, ContainerListener, IFlyableBehavior {
 
     public static final int FLIGHT_CHANCE_PER_TICK = 1500;
     protected static final EntityDataAccessor<Boolean> SWIMMING = SynchedEntityData.defineId(EntityDragonBase.class, EntityDataSerializers.BOOLEAN);
@@ -163,7 +176,12 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     public float[] prevAnimationProgresses = new float[10];
     public boolean isDaytime;
     public int flightCycle;
-    public HomePosition homePos;
+    /**
+     *
+     */
+    @Deprecated(forRemoval = true)
+    private HomePosition homePos;
+    @Deprecated
     public boolean hasHomePosition = false;
     public IFChainBuffer roll_buffer;
     public IFChainBuffer pitch_buffer;
@@ -197,6 +215,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     public String prevArmorResLoc = "0|0|0|0";
     public String armorResLoc = "0|0|0|0";
     public IafDragonFlightManager flightManager;
+    @Deprecated(forRemoval = true)
     public boolean lookingForRoostAIFlag = false;
     protected int flyHovering;
     protected boolean hasHadHornUse = false;
@@ -245,26 +264,35 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             tail_buffer = new ChainBuffer();
         }
         legSolver = new LegSolverQuadruped(0.3F, 0.35F, 0.2F, 1.45F, 1.0F);
-        this.flightManager = new IafDragonFlightManager(this);
         this.logic = createDragonLogic();
         this.noCulling = true;
-        switchNavigator(0);
         randomizeAttacks();
         resetParts(1);
+
+        this.flightManager = new CustomDragonFlightManager(this);
+        if (this.isHovering()) {
+            this.airborneState = DragonBehaviorUtils.AirborneState.HOVER;
+        } else if (this.isFlying()) {
+            this.airborneState = DragonBehaviorUtils.AirborneState.FLY;
+        } else {
+            this.airborneState = DragonBehaviorUtils.AirborneState.GROUNDED;
+        }
+        this.switchNavigator(this.airborneState == DragonBehaviorUtils.AirborneState.GROUNDED);
+
     }
 
     public static AttributeSupplier.Builder bakeAttributes() {
         return Mob.createMobAttributes()
-            //HEALTH
-            .add(Attributes.MAX_HEALTH, 20.0D)
-            //SPEED
-            .add(Attributes.MOVEMENT_SPEED, 0.3D)
-            //ATTACK
-            .add(Attributes.ATTACK_DAMAGE, 1)
-            //FOLLOW RANGE
-            .add(Attributes.FOLLOW_RANGE, Math.min(2048, IafConfig.dragonTargetSearchLength))
-            //ARMOR
-            .add(Attributes.ARMOR, 4);
+                //HEALTH
+                .add(Attributes.MAX_HEALTH, 20.0D)
+                //SPEED
+                .add(Attributes.MOVEMENT_SPEED, 0.3D)
+                //ATTACK
+                .add(Attributes.ATTACK_DAMAGE, 1)
+                //FOLLOW RANGE
+                .add(Attributes.FOLLOW_RANGE, Math.min(2048, IafConfig.dragonTargetSearchLength))
+                //ARMOR
+                .add(Attributes.ARMOR, 4);
     }
 
     @Override
@@ -272,9 +300,361 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return bakeAttributes();
     }
 
+    public Brain<EntityDragonBase> getBrain() {
+        return (Brain<EntityDragonBase>) super.getBrain();
+    }
+    private static final ImmutableList<MemoryModuleType<?>> MEMORY_TYPES = ImmutableList.of(
+            MemoryModuleType.LOOK_TARGET,
+
+            MemoryModuleType.WALK_TARGET,
+            DragonMemoryModuleType.PREFERRED_NAVIGATION_TYPE,
+            DragonMemoryModuleType.COMMAND_STAY_POSITION,
+            DragonMemoryModuleType.FORBID_WALKING,
+            DragonMemoryModuleType.FORBID_FLYING,
+            MemoryModuleType.PATH,
+            MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE,
+
+            MemoryModuleType.ATTACK_TARGET,
+            MemoryModuleType.ATTACK_COOLING_DOWN,
+            MemoryModuleType.NEAREST_ATTACKABLE,
+            MemoryModuleType.NEAREST_HOSTILE,
+            DragonMemoryModuleType.NEAREST_HUNTABLE,
+
+
+            MemoryModuleType.HURT_BY,
+            MemoryModuleType.HURT_BY_ENTITY,
+            DragonMemoryModuleType.LAST_OWNER_HURT_TARGET,
+            DragonMemoryModuleType.LAST_OWNER_HURT_BY_TARGET,
+
+            MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES,
+            MemoryModuleType.NEAREST_VISIBLE_ADULT,
+
+            MemoryModuleType.BREED_TARGET,
+            MemoryModuleType.TEMPTING_PLAYER,
+            MemoryModuleType.TEMPTATION_COOLDOWN_TICKS,
+            MemoryModuleType.IS_TEMPTED,
+
+            MemoryModuleType.HAS_HUNTING_COOLDOWN,
+            MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM,
+
+            MemoryModuleType.HOME,
+            DragonMemoryModuleType.FORBID_GO_HOME,
+
+            DragonMemoryModuleType.PERSIST_MEMORY_TEST
+
+    );
+    private static final ImmutableList<SensorType<? extends Sensor<? super EntityDragonBase>>> SENSOR_TYPES = ImmutableList.of(
+
+    );
+
+    protected Brain.Provider<EntityDragonBase> brainProvider() {
+        return Brain.provider(MEMORY_TYPES, SENSOR_TYPES);
+    }
+
+    protected Brain<?> makeBrain(Dynamic<?> pDynamic) {
+        Brain<EntityDragonBase> brain = this.brainProvider().makeBrain(pDynamic);
+        this.registerBrainGoals(brain);
+
+        return brain;
+    }
+
+    public void refreshBrain(ServerLevel pServerLevel) {
+        Brain<EntityDragonBase> brain = this.getBrain();
+        brain.stopAll(pServerLevel, this);
+        this.brain = brain.copyWithoutBehaviors();
+        this.registerBrainGoals(this.getBrain());
+    }
+
+    private void registerBrainGoals(Brain<EntityDragonBase> brain) {
+        BehaviorDragonFrost.registerActivities(brain);
+        brain.setSchedule(DragonSchedule.TEST_SCHEDULE);
+        brain.setCoreActivities(ImmutableSet.of(Activity.CORE));
+        brain.setDefaultActivity(Activity.IDLE);
+        brain.useDefaultActivity();
+    }
+
+
+    @Override
+    protected void customServerAiStep() {
+        this.level.getProfiler().push("dragonBrain");
+        this.getBrain().tick((ServerLevel)this.level, this);
+        this.level.getProfiler().pop();
+        BehaviorDragonFrost.updateActivity(this);
+        this.updateFlightStatus();
+        super.customServerAiStep();
+        breakBlock();
+    }
+
+    public DragonBehaviorUtils.AirborneState airborneState = DragonBehaviorUtils.AirborneState.GROUNDED;
+    protected int takeoffCounter = 0;
+
+    private void updateFlightStatus() {
+        this.setNoGravity(this.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED);
+        switch (this.getAirborneState()) {
+            case HOVER:
+            case FLY:
+            case GROUNDED:
+                this.setHovering(this.getAirborneState() == DragonBehaviorUtils.AirborneState.HOVER);
+                this.setFlying(this.getAirborneState() == DragonBehaviorUtils.AirborneState.FLY);
+
+//                if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+//                    this.takeoff();
+//                }
+                break;
+            case TAKEOFF:
+                this.setHovering(true);
+                this.setFlying(false);
+                if (takeoffCounter++ > 20 || this.isOverAirLogic()) {
+                    takeoffCounter = 0;
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.FLY);
+                }
+                break;
+            case LANDING:
+                this.setHovering(true);
+                this.setFlying(false);
+                if (this.getControllingPassenger() == null) {
+                    this.setDeltaMovement(this.getDeltaMovement().add(0, -0.1, 0));
+                }
+                if (!this.isOverAirLogic()) {
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
+                }
+                break;
+        }
+    }
+
+    @Override
+    public void setAirborneState(DragonBehaviorUtils.AirborneState state) {
+        this.airborneState = state;
+
+        switch (state) {
+            case HOVER -> {
+            }
+            case FLY -> {
+            }
+            case GROUNDED -> {
+                this.setHovering(false);
+                this.setFlying(false);
+            }
+            case LANDING -> {
+            }
+            case TAKEOFF -> {
+                this.setHovering(true);
+                this.setFlying(false);
+            }
+        }
+    }
+
+    @Override
+    public DragonBehaviorUtils.AirborneState getAirborneState() {
+        return airborneState;
+    }
+
+    @Override
+    public void takeoff() {
+        if (this.isLandNavigator()) {
+            this.switchNavigator(DragonMemoryModuleType.NavigationType.HOVER);
+        }
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.setDeltaMovement(this.getDeltaMovement().add(0,0.05,0));
+            this.switchNavigator(DragonMemoryModuleType.NavigationType.HOVER);
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.TAKEOFF);
+        }
+    }
+
+    @Override
+    public void land() {
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.FLY || this.getAirborneState() == DragonBehaviorUtils.AirborneState.HOVER) {
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.LANDING);
+        }
+    }
+
+    @Override
+    public void hover() {
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.takeoff();
+        } else {
+            if (this.getControllingPassenger() == null) {
+                this.setDeltaMovement(this.getDeltaMovement().multiply(0.5f,0.5f,0.5f));
+            }
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.HOVER);
+        }
+    }
+
+    @Override
+    public void walkTo(WalkTarget walkTarget) {
+        if (this.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.land();
+            return;
+        }
+
+        if (!isLandNavigator()) {
+            switchNavigator(DragonMemoryModuleType.NavigationType.WALK);
+        }
+        AdvancedPathNavigate navigator = (AdvancedPathNavigate) this.getNavigation();
+        navigator.moveToXYZ(
+                walkTarget.getTarget().currentPosition().x,
+                walkTarget.getTarget().currentPosition().y,
+                walkTarget.getTarget().currentPosition().z,
+                walkTarget.getSpeedModifier()
+        );
+    }
+
+    @Override
+    public void flightTo(WalkTarget walkTarget) {
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.takeoff();
+            return;
+        }
+
+        if (isLandNavigator()) {
+            switchNavigator(DragonMemoryModuleType.NavigationType.FLY);
+        }
+
+//        AdvancedPathNavigate navigator = (AdvancedPathNavigate) this.getNavigation();
+//        navigator.moveToXYZ(
+//                walkTarget.getTarget().currentPosition().x,
+//                walkTarget.getTarget().currentPosition().y,
+//                walkTarget.getTarget().currentPosition().z,
+//                walkTarget.getSpeedModifier()
+//        );
+        this.flightManager.setFlightTarget(walkTarget.getTarget().currentPosition());
+
+    }
+
+    @Override
+    public void hoverTo(WalkTarget walkTarget) {
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.takeoff();
+            return;
+        }
+
+        if (isLandNavigator()) {
+            switchNavigator(DragonMemoryModuleType.NavigationType.HOVER);
+        }
+
+        AdvancedPathNavigate navigator = (AdvancedPathNavigate) this.getNavigation();
+        navigator.moveToXYZ(
+                walkTarget.getTarget().currentPosition().x,
+                walkTarget.getTarget().currentPosition().y,
+                walkTarget.getTarget().currentPosition().z,
+                walkTarget.getSpeedModifier()
+        );
+    }
+
+    public void switchNavigator(boolean onLand) {
+        this.switchNavigator(onLand ? DragonMemoryModuleType.NavigationType.WALK : DragonMemoryModuleType.NavigationType.HOVER);
+    }
+
+    public void switchNavigator(DragonMemoryModuleType.NavigationType navigationType) {
+        switch (navigationType) {
+            case WALK -> {
+                if (this.navigatorType != 0) {
+                    this.moveControl = new CustomMoveController.GroundMoveHelper(this);
+                    this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.WALKING, createStuckHandler().withTeleportSteps(5));
+                    this.navigatorType = 0;
+                }
+            }
+            case FLY -> {
+                if (this.navigatorType != 1) {
+                    this.moveControl = new CustomMoveController.FlightMoveHelper(this);
+                    this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
+                    this.navigatorType = 1;
+                }
+            }
+            case HOVER -> {
+                // Use 99 to prevent possible violation
+                // Fixme
+                if (this.navigatorType != 99) {
+                    this.moveControl = new CustomMoveController.BasicHoverMoveControl(this);
+                    this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
+                    this.navigatorType = 99;
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean canLand() {
+        if (!IFlyableBehavior.super.canLand()) {
+            return false;
+        }
+        return !brain.getMemory(DragonMemoryModuleType.FORBID_WALKING).orElse(false)
+                && !brain.isMemoryValue(DragonMemoryModuleType.PREFERRED_NAVIGATION_TYPE, DragonMemoryModuleType.NavigationType.FLY)
+                ;
+    }
+
+    @Override
+    public boolean canFly() {
+        if (!IFlyableBehavior.super.canFly()) {
+            return false;
+        }
+        return !brain.getMemory(DragonMemoryModuleType.FORBID_FLYING).orElse(false)
+                && !brain.isMemoryValue(DragonMemoryModuleType.PREFERRED_NAVIGATION_TYPE, DragonMemoryModuleType.NavigationType.WALK)
+                && !this.getBrain().getMemory(MemoryModuleType.IS_TEMPTED).orElse(false)
+                ;
+    }
+
+    @Override
+    public void spawnChildFromBreeding(ServerLevel pLevel, Animal pMate) {
+        super.spawnChildFromBreeding(pLevel, pMate);
+    }
+
+    @Override
+    public boolean wantsToPickUp(ItemStack pStack) {
+        return super.wantsToPickUp(pStack);
+    }
+
+    /**
+     * Used when a tamed is trying to attack because their owner
+     * @param targetAssignedByOwner
+     * @param owner
+     * @return
+     */
+    @Override
+    public boolean wantsToAttack(@NotNull LivingEntity targetAssignedByOwner, @NotNull LivingEntity owner) {
+        if (this.isTame() && targetAssignedByOwner instanceof TamableAnimal tamableTarget) {
+            UUID targetOwner = tamableTarget.getOwnerUUID();
+            if (targetOwner != null && targetOwner.equals(this.getOwnerUUID())) {
+                return false;
+            }
+        }
+        return super.wantsToAttack(targetAssignedByOwner, owner);
+    }
+
+    /**
+     * Used when a mob is trying to attack
+     * @param target
+     * @return
+     */
+    @Override
+    public boolean canAttack(@NotNull LivingEntity target) {
+        return super.canAttack(target) && DragonUtils.isAlive(target);
+    }
+
+    public Optional<GlobalPos> getHomePos() {
+        var optional = this.getBrain().getMemory(MemoryModuleType.HOME);
+        if (this.homePos != null && this.hasHomePosition && optional.isEmpty()) {
+            // Note: this shouldn't happen
+            // For compatibility. Migrate old homePos to new one
+            optional = Optional.of(this.homePos.toGlobalPos());
+            this.getBrain().setMemory(MemoryModuleType.HOME, this.homePos.toGlobalPos());
+
+            this.homePos = null;
+        }
+        return optional;
+    }
+
+    public void setHomePos(@Nullable GlobalPos homePos) {
+        if (homePos != null) {
+            this.getBrain().setMemory(MemoryModuleType.HOME, homePos);
+        } else {
+            this.getBrain().eraseMemory(MemoryModuleType.HOME);
+        }
+    }
+
     @Override
     public @NotNull BlockPos getRestrictCenter() {
-        return this.homePos == null ? super.getRestrictCenter() : homePos.getPosition();
+        return this.getHomePos().map(GlobalPos::pos).orElse(super.getRestrictCenter());
     }
 
     @Override
@@ -283,7 +663,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     public String getHomeDimensionName() {
-        return this.homePos == null ? "" : homePos.getDimension();
+        return this.getHomePos().map(globalPos -> globalPos.dimension().toString()).orElse("");
     }
 
     @Override
@@ -295,32 +675,32 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 
     @Override
     protected void registerGoals() {
-//        this.goalSelector.addGoal(0, new DragonAIRide<>(this));
-        this.goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
-        this.goalSelector.addGoal(2, new DragonAIMate(this, 1.0D));
-        this.goalSelector.addGoal(3, new DragonAIReturnToRoost(this, 1.0D));
-        this.goalSelector.addGoal(4, new DragonAIEscort(this, 1.0D));
-        this.goalSelector.addGoal(5, new DragonAIAttackMelee(this, 1.5D, false));
-        this.goalSelector.addGoal(6, new AquaticAITempt(this, 1.0D, IafItemRegistry.FIRE_STEW, false));
-        this.goalSelector.addGoal(7, new DragonAIWander(this, 1.0D));
-        this.goalSelector.addGoal(8, new DragonAIWatchClosest(this, LivingEntity.class, 6.0F));
-        this.goalSelector.addGoal(8, new DragonAILookIdle(this));
-        this.targetSelector.addGoal(1, new OwnerHurtTargetGoal(this));
-        this.targetSelector.addGoal(2, new OwnerHurtByTargetGoal(this));
-        this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(4, new DragonAITargetNonTamed(this, LivingEntity.class, false, new Predicate<LivingEntity>() {
-            @Override
-            public boolean apply(@Nullable LivingEntity entity) {
-                return (!(entity instanceof Player) || !((Player) entity).isCreative()) && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
-            }
-        }));
-        this.targetSelector.addGoal(5, new DragonAITarget(this, LivingEntity.class, true, new Predicate<LivingEntity>() {
-            @Override
-            public boolean apply(@Nullable LivingEntity entity) {
-                return entity instanceof LivingEntity && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
-            }
-        }));
-        this.targetSelector.addGoal(6, new DragonAITargetItems(this, false));
+////        this.goalSelector.addGoal(0, new DragonAIRide<>(this));
+//        this.goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
+//        this.goalSelector.addGoal(2, new DragonAIMate(this, 1.0D));
+//        this.goalSelector.addGoal(3, new DragonAIReturnToRoost(this, 1.0D));
+//        this.goalSelector.addGoal(4, new DragonAIEscort(this, 1.0D));
+//        this.goalSelector.addGoal(5, new DragonAIAttackMelee(this, 1.5D, false));
+//        this.goalSelector.addGoal(6, new AquaticAITempt(this, 1.0D, IafItemRegistry.FIRE_STEW, false));
+//        this.goalSelector.addGoal(7, new DragonAIWander(this, 1.0D));
+//        this.goalSelector.addGoal(8, new DragonAIWatchClosest(this, LivingEntity.class, 6.0F));
+//        this.goalSelector.addGoal(8, new DragonAILookIdle(this));
+//        this.targetSelector.addGoal(1, new OwnerHurtTargetGoal(this));
+//        this.targetSelector.addGoal(2, new OwnerHurtByTargetGoal(this));
+//        this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
+//        this.targetSelector.addGoal(4, new DragonAITargetNonTamed(this, LivingEntity.class, false, new Predicate<LivingEntity>() {
+//            @Override
+//            public boolean apply(@Nullable LivingEntity entity) {
+//                return (!(entity instanceof Player) || !((Player) entity).isCreative()) && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
+//            }
+//        }));
+//        this.targetSelector.addGoal(5, new DragonAITarget(this, LivingEntity.class, true, new Predicate<LivingEntity>() {
+//            @Override
+//            public boolean apply(@Nullable LivingEntity entity) {
+//                return entity instanceof LivingEntity && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
+//            }
+//        }));
+//        this.targetSelector.addGoal(6, new DragonAITargetItems(this, false));
     }
 
     protected abstract boolean shouldTarget(Entity entity);
@@ -511,6 +891,11 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return newNavigator;
     }
 
+    public boolean isLandNavigator() {
+        return this.navigatorType == 0;
+    }
+
+    @Deprecated(forRemoval = true)
     protected void switchNavigator(int navigatorType) {
         if (navigatorType == 0) {
             this.moveControl = new IafDragonFlightManager.GroundMoveHelper(this);
@@ -523,21 +908,16 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
             this.navigatorType = 1;
         } else {
-            this.moveControl = new IafDragonFlightManager.PlayerFlightMoveHelper(this);
-            this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
-            this.navigatorType = 2;
+            IceAndFire.LOGGER.warn("We need to get rid of this");
+//            this.moveControl = new IafDragonFlightManager.PlayerFlightMoveHelper(this);
+//            this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
+//            this.navigatorType = 2;
         }
     }
 
     @Override
     public boolean canBeRiddenInWater(Entity rider) {
         return true;
-    }
-
-    @Override
-    protected void customServerAiStep() {
-        super.customServerAiStep();
-        breakBlock();
     }
 
     public boolean canDestroyBlock(BlockPos pos, BlockState state) {
@@ -761,7 +1141,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         compound.putBoolean("HasHomePosition", this.hasHomePosition);
         compound.putString("CustomPose", this.getCustomPose());
         if (homePos != null && this.hasHomePosition) {
-            homePos.write(compound);
+//            homePos.write(compound);
         }
         compound.putBoolean("AgingDisabled", this.isAgingDisabled());
         compound.putInt("Command", this.getCommand());
@@ -803,7 +1183,13 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         this.setCustomPose(compound.getString("CustomPose"));
         this.hasHomePosition = compound.getBoolean("HasHomePosition");
         if (hasHomePosition && compound.getInt("HomeAreaX") != 0 && compound.getInt("HomeAreaY") != 0 && compound.getInt("HomeAreaZ") != 0) {
-            homePos = new HomePosition(compound, this.level);
+            IceAndFire.LOGGER.warn("Trying to convert home position of " + this);
+            HomePosition legacyPos = new HomePosition(compound, this.level);
+            IceAndFire.LOGGER.warn("Legacy home position read: " + legacyPos.getPosition() + " at " + legacyPos.getDimension());
+            this.setHomePos(legacyPos.toGlobalPos());
+
+            this.homePos = null;
+            this.hasHomePosition = false;
         }
         this.setTackling(compound.getBoolean("Tackle"));
         this.setAgingDisabled(compound.getBoolean("AgingDisabled"));
@@ -1015,7 +1401,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     public boolean useFlyingPathFinder() {
-        return isFlying() && this.getControllingPassenger() == null;
+        return (this.isFlying() || this.isHovering()) && this.getControllingPassenger() == null;
     }
 
     public void setGender(boolean male) {
@@ -1136,7 +1522,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         int lastDeathStage = Math.min(this.getAgeInDays() / 5, 25);
         if (stack.getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
             logic.debug();
-            return InteractionResult.SUCCESS;
+//            return InteractionResult.SUCCESS;
         }
         if (this.isModelDead() && this.getDeathStage() < lastDeathStage && player.mayBuild()) {
             if (!level.isClientSide && !stack.isEmpty() && stack.getItem() != null && stack.getItem() == Items.GLASS_BOTTLE && this.getDeathStage() < lastDeathStage / 2 && IafConfig.dragonDropBlood) {
@@ -1187,7 +1573,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         int lastDeathStage = this.getAgeInDays() / 5;
         if (stack.getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
             logic.debug();
-            return InteractionResult.SUCCESS;
+//            return InteractionResult.SUCCESS;
         }
         if (!this.isModelDead()) {
             if (this.isFood(stack) && this.shouldDropLoot()) {
@@ -1283,15 +1669,14 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                         return InteractionResult.SUCCESS;
                     } else if (stackItem == IafItemRegistry.DRAGON_STAFF.get()) {
                         if (player.isShiftKeyDown()) {
-                            if (this.hasHomePosition) {
-                                this.hasHomePosition = false;
+                            if (this.getHomePos().isPresent()) {
+                                this.setHomePos(null);
                                 player.displayClientMessage(new TranslatableComponent("dragon.command.remove_home"), true);
                                 return InteractionResult.SUCCESS;
                             } else {
                                 BlockPos pos = this.blockPosition();
-                                this.homePos = new HomePosition(pos, this.level);
-                                this.hasHomePosition = true;
-                                player.displayClientMessage(new TranslatableComponent("dragon.command.new_home", pos.getX(), pos.getY(), pos.getZ(), homePos.getDimension()), true);
+                                this.setHomePos(GlobalPos.of(this.level.dimension(), pos));
+                                player.displayClientMessage(new TranslatableComponent("dragon.command.new_home", pos.getX(), pos.getY(), pos.getZ(), this.getHomePos().get().dimension()), true);
                                 return InteractionResult.SUCCESS;
                             }
                         } else {
@@ -1421,7 +1806,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return isOverAir;
     }
 
-    private boolean isOverAirLogic() {
+    public boolean isOverAirLogic() {
         return level.isEmptyBlock(new BlockPos(this.getX(), this.getBoundingBox().minY - 1, this.getZ()));
     }
 
@@ -1769,13 +2154,14 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 this.ejectPassengers();
             }
 
-            this.setHovering(false);
-            this.setFlying(false);
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
         }
         AnimationHandler.INSTANCE.updateAnimations(this);
         if (animationTick > this.getAnimation().getDuration() && !level.isClientSide) {
             animationTick = 0;
         }
+
+        this.setNoGravity(this.isFlying() || this.isHovering());
     }
 
     @Override
@@ -2045,8 +2431,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 speed *= airSpeedModifier;
                 // Set flag for logic and animation
                 if (forward > 0) {
-                    this.setFlying(true);
-                    this.setHovering(false);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.FLY);
                 }
                 // Rider controlled tackling
                 if (this.isAttacking() && this.getXRot() > -5 && this.getDeltaMovement().length() > 1.0d) {
@@ -2190,6 +2575,15 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         }
         // No rider move control
         else {
+            this.setNoGravity(this.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED);
+            this.noPhysics = false;
+
+            if (this.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED) {
+                this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.92f, 1.0f));
+            }
+
+            this.flyingSpeed = 0.02F;
+
             super.travel(pTravelVector);
         }
     }
@@ -2223,9 +2617,10 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             } else if (this.getDragonPitch() < -2F) {
                 this.incrementDragonPitch(1);
             }
+            // Fixme: what is this?
             if (this.getControllingPassenger() == null && this.getDragonPitch() < -45 && planeDist < 3) {
                 if (this.isFlying() && !this.isHovering()) {
-                    this.setHovering(true);
+//                    this.setHovering(true);
                 }
             }
         } else {
@@ -2268,7 +2663,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             // Hold spacebar 1 sec to take off
             if (this.spacebarTicks > 20 && this.getOwner() != null && this.getPassengers().contains(this.getOwner()) && !this.isFlying() && !this.isHovering()) {
                 if (!this.isInWater()) {
-                    this.setHovering(true);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.TAKEOFF);
                     this.spacebarTicks = 0;
 
                     this.glidingSpeedBonus = 0;
@@ -2276,21 +2671,17 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             }
             if (isFlying() || isHovering()) {
                 if (rider.zza > 0) {
-                    this.setFlying(true);
-                    this.setHovering(false);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.FLY);
                 } else {
-                    this.setFlying(false);
-                    this.setHovering(true);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.HOVER);
                 }
                 // Hitting terrain with big angle of attack
                 if (!this.isOverAir() && this.isFlying() && rider.getXRot() > 10 && !this.isInWater()) {
-                    this.setHovering(false);
-                    this.setFlying(false);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
                 }
                 // Dragon landing
                 if (!this.isOverAir() && this.isGoingDown() && !this.isInWater()) {
-                    this.setFlying(false);
-                    this.setHovering(false);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
                 }
             }
 
@@ -2342,8 +2733,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             }
             // Stop flying when hit the water, but waterfalls do not block flying
             if (this.getFeetBlockState().getFluidState().isSource() && this.isInWater() && !this.isGoingUp()) {
-                this.setFlying(false);
-                this.setHovering(false);
+                this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
             }
         } else if (controllingPassenger instanceof EntityDreadQueen) {
             // Original logic involves riding
@@ -2356,8 +2746,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 } else if (this.isDismounting()) {
                     if (this.isFlying() || this.isHovering()) {
                         this.setDeltaMovement(this.getDeltaMovement().add(0, -0.04, 0));
-                        this.setFlying(false);
-                        this.setHovering(false);
+                        this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
                     }
                 }
             }
@@ -2385,25 +2774,23 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             }
             if (this.isFlying()) {
                 if (!this.isHovering() && this.getControllingPassenger() != null && !this.isOnGround() && Math.max(Math.abs(this.getDeltaMovement().x()), Math.abs(this.getDeltaMovement().z())) < 0.1F) {
-                    this.setHovering(true);
-                    this.setFlying(false);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.HOVER);
                 }
             } else {
                 if (this.isHovering() && this.getControllingPassenger() != null && !this.isOnGround() && Math.max(Math.abs(this.getDeltaMovement().x()), Math.abs(this.getDeltaMovement().z())) > 0.1F) {
-                    this.setFlying(true);
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.FLY);
                     this.usingGroundAttack = false;
-                    this.setHovering(false);
                 }
             }
             if (this.spacebarTicks > 0) {
                 this.spacebarTicks--;
             }
             if (this.spacebarTicks > 20 && this.getOwner() != null && this.getPassengers().contains(this.getOwner()) && !this.isFlying() && !this.isHovering()) {
-                this.setHovering(true);
+                this.setAirborneState(DragonBehaviorUtils.AirborneState.TAKEOFF);
             }
 
             if (this.isVehicle() && !this.isOverAir() && this.isFlying() && !this.isHovering() && this.flyTicks > 40) {
-                this.setFlying(false);
+                this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
             }
         }
     }
@@ -2444,7 +2831,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         } else {
             this.noPhysics = false;
             // The flight mgr is not ready for noGravity
-            this.setNoGravity(false);
+//            this.setNoGravity(false);
             super.move(pType, pPos);
         }
 
@@ -2481,8 +2868,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     public void onHearFlute(Player player) {
         if (this.isTame() && this.isOwnedBy(player)) {
             if (this.isFlying() || this.isHovering()) {
-                this.setFlying(false);
-                this.setHovering(false);
+                this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
             }
         }
     }
@@ -2772,21 +3158,6 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         this.flightManager.onSetAttackTarget(LivingEntityIn);
     }
 
-    @Override
-    public boolean wantsToAttack(@NotNull LivingEntity target, @NotNull LivingEntity owner) {
-        if (this.isTame() && target instanceof TamableAnimal tamableTarget) {
-            UUID targetOwner = tamableTarget.getOwnerUUID();
-            if (targetOwner != null && targetOwner.equals(this.getOwnerUUID())) {
-                return false;
-            }
-        }
-        return super.wantsToAttack(target, owner);
-    }
-
-    @Override
-    public boolean canAttack(@NotNull LivingEntity target) {
-        return super.canAttack(target) && DragonUtils.isAlive(target);
-    }
 
     public boolean isPart(Entity entityHit) {
         return headPart != null && headPart.is(entityHit) || neckPart != null && neckPart.is(entityHit) ||

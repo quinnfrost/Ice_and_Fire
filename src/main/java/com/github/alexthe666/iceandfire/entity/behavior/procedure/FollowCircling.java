@@ -1,16 +1,14 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonFlightUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
-import com.google.common.collect.ImmutableMap;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.phys.Vec3;
 
-public class FollowCircling<E extends TamableAnimal & IAllMethodINeed> extends FlightFollowing<E>{
+public class FollowCircling<E extends TamableAnimal & IFlyableBehavior> extends FlightFollowing<E>{
     public FollowCircling() {
         super();
     }

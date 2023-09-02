@@ -5,11 +5,12 @@ import com.github.alexthe666.iceandfire.entity.IafEntityRegistry;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonActivity;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonSensorType;
+import com.github.alexthe666.iceandfire.entity.behavior.procedure.*;
+import com.github.alexthe666.iceandfire.entity.behavior.procedure.core.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.datafixers.util.Pair;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -23,6 +24,7 @@ import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
@@ -51,7 +53,9 @@ public class BehaviorHippogryph {
                 DragonActivity.HUNT,
                 BehaviorHippogryph.getHuntPackage(),
                 ImmutableSet.of(Pair.of(
-                        MemoryModuleType.ATTACK_TARGET, MemoryStatus.VALUE_PRESENT
+                        MemoryModuleType.ATTACK_TARGET, MemoryStatus.VALUE_ABSENT
+                ), Pair.of(
+                        MemoryModuleType.HAS_HUNTING_COOLDOWN, MemoryStatus.VALUE_ABSENT
                 ))
         );
         brain.addActivityWithConditions(
@@ -75,10 +79,11 @@ public class BehaviorHippogryph {
         } else if (hippogryph.isTame() && hippogryph.getCommand() == 2) {
             brain.setActiveActivityIfPossible(DragonActivity.FOLLOW);
         } else {
-            brain.setActiveActivityToFirstValid(ImmutableList.of(DragonActivity.HUNT, Activity.IDLE));
+            brain.updateActivityFromSchedule(hippogryph.level.getDayTime(), hippogryph.level.getGameTime());
+//            brain.setActiveActivityToFirstValid(ImmutableList.of(DragonActivity.HUNT, Activity.IDLE));
         }
         if (activity == Activity.FIGHT && brain.getActiveNonCoreActivity().orElse((Activity)null) != Activity.FIGHT) {
-            brain.setMemoryWithExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN, true, 2400L);
+            brain.setMemoryWithExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN, true, 240L);
         }
         Activity activity1 = brain.getActiveNonCoreActivity().orElse((Activity)null);
     }
@@ -139,6 +144,11 @@ public class BehaviorHippogryph {
         if (potentialTargetOptional.isPresent() && Sensor.isEntityAttackableIgnoringLineOfSight(hippogryph, potentialTargetOptional.get())) {
             return potentialTargetOptional;
         }
+
+//        potentialTargetOptional = hippogryph.getBrain().getMemory(DragonMemoryModuleType.NEAREST_HUNTABLE);
+//        if (potentialTargetOptional.isPresent() && Sensor.isEntityAttackableIgnoringLineOfSight(hippogryph, potentialTargetOptional.get())) {
+//            return potentialTargetOptional;
+//        }
         return hippogryph.getBrain().getMemory(MemoryModuleType.NEAREST_ATTACKABLE);
     }
 
@@ -164,6 +174,52 @@ public class BehaviorHippogryph {
 
     public static Ingredient getTemptations() {
         return Ingredient.of(Items.RABBIT_FOOT);
+    }
+
+    @NotNull
+    private static Pair<Integer, GateBehavior<EntityHippogryph>> getTempedAndFollowBehavior() {
+        return Pair.of(2, new GateBehavior<>(
+                ImmutableMap.of(),
+                ImmutableSet.of(),
+                GateBehavior.OrderPolicy.ORDERED,
+                GateBehavior.RunningPolicy.TRY_ALL,
+                ImmutableList.of(
+                        Pair.of(new HippogryphGoEat<>(entityHippogryph -> {
+                            return !entityHippogryph.isTame();
+                        }, 1.0f, true, 18), 1),
+                        Pair.of(new FollowTemptationTamed(), 1),
+                        Pair.of(new FollowAdultTamed<>(), 1)
+                )
+        ));
+    }
+
+    @NotNull
+    private static Pair<Integer, RunOne<EntityHippogryph>> getRandomStrollBehavior() {
+        return Pair.of(4, new RunOne<>(ImmutableMap.of(
+                MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.BREED_TARGET, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.TEMPTING_PLAYER, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, MemoryStatus.VALUE_ABSENT
+        ), ImmutableList.of(
+                Pair.of(new RunSometimes<>(new RandomStrollGround<>(0.9F, 5, 4, false), UniformInt.of(1, 2)), 2),
+                Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 1.0f, 16), 2),
+                Pair.of(new RandomStrollAir<>(0.9F, false), 2),
+                Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(30, 60)), 2),
+                Pair.of(new DoNothing(60, 120), 2)
+//                        Pair.of(new SetWalkTargetFromLookTarget(AxolotlAi::canSetWalkTargetFromLookTarget, AxolotlAi::getSpeedModifier, 3), 3),
+//                        Pair.of(new RunIf<>(Entity::isInWaterOrBubble, new DoNothing(30, 60)), 5),
+//                        Pair.of(new RunIf<>(Entity::isOnGround, new DoNothing(200, 400)), 5))
+        )));
+    }
+
+    @NotNull
+    private static Pair<Integer, RunOne<EntityHippogryph>> getRandomLookBehavior() {
+        return Pair.of(0, new RunOne<>(ImmutableList.of(
+                Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 6.0F), 0),
+                Pair.of(new SetEntityLookTarget(6.0F), 0),
+                Pair.of(new DoNothing(30, 60), 0)
+
+        )));
     }
 
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getCorePackage() {
@@ -199,18 +255,14 @@ public class BehaviorHippogryph {
         return ImmutableList.of(
                 Pair.of(0, new StopAttackingIfTargetInvalid<>(
                         mob -> {
-                            return mob == null || !mob.isAlive();
+                            return false;
                         },
                         hippogryph -> {
                             hippogryph.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
                             hippogryph.land();
                         }
-                ) {
-                    @Override
-                    protected void start(ServerLevel pLevel, EntityHippogryph pEntity, long pGameTime) {
-                        super.start(pLevel, pEntity, pGameTime);
-                    }
-                }),
+                )),
+                Pair.of(0, new StopHuntingIfWantedItemFound<>()),
                 Pair.of(0, new RememberNextTargetOrSwap<>(hippogryph -> hippogryph.canMove(), BehaviorHippogryph::findNearestValidAttackTarget)),
                 Pair.of(0, new SetWalkTargetFromAttackTargetIfTargetOutOfReach(1.0f)),
                 Pair.of(0, new MeleeAttack(0)),
@@ -234,53 +286,35 @@ public class BehaviorHippogryph {
                 Pair.of(1, new DoNothing(30, 60))
         );
     }
-
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getRidePackage() {
         return ImmutableList.of();
     }
 
     private static final UniformInt ADULT_FOLLOW_RANGE = UniformInt.of(5, 16);
+
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getWanderPackage() {
         return ImmutableList.of(
-                Pair.of(0, new RunSometimes<>(
-                        new SetEntityLookTarget(EntityType.PLAYER, 6.0F),
-                        UniformInt.of(30, 60))),
+                getRandomLookBehavior(),
                 Pair.of(1, new AnimalMakeLove(IafEntityRegistry.HIPPOGRYPH.get(), 0.6F)),
-                Pair.of(2, new GateBehavior<>(
-                        ImmutableMap.of(),
-                        ImmutableSet.of(),
-                        GateBehavior.OrderPolicy.ORDERED,
-                        GateBehavior.RunningPolicy.TRY_ALL,
-                        ImmutableList.of(
-                                Pair.of(new HippogryphGoEat<>(entityHippogryph -> {
-                                    return !entityHippogryph.isTame();
-                                }, 1.0f, true, 18), 1),
-                                Pair.of(new FollowTemptationTamed(), 1),
-                                Pair.of(new FollowAdultTamed<>(), 1)
-                        )
-                )),
+                getTempedAndFollowBehavior(),
                 Pair.of(3, new StartAttacking<>(BehaviorHippogryph::findNearestValidAttackTarget)),
-                Pair.of(4, new RunOne<>(ImmutableMap.of(
-                        MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT,
-                        MemoryModuleType.BREED_TARGET, MemoryStatus.VALUE_ABSENT,
-                        MemoryModuleType.TEMPTING_PLAYER, MemoryStatus.VALUE_ABSENT,
-                        MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, MemoryStatus.VALUE_ABSENT
-                ), ImmutableList.of(
-//                        Pair.of(new RandomStrollGround<>(0.9F, false), 2),
-                        Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 1.0f, 16), 2),
-                        Pair.of(new RandomStrollAir<>(0.9F, false), 2),
-                        Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(30, 60)), 2),
-                        Pair.of(new DoNothing(60, 120), 2)
-//                        Pair.of(new SetWalkTargetFromLookTarget(AxolotlAi::canSetWalkTargetFromLookTarget, AxolotlAi::getSpeedModifier, 3), 3),
-//                        Pair.of(new RunIf<>(Entity::isInWaterOrBubble, new DoNothing(30, 60)), 5),
-//                        Pair.of(new RunIf<>(Entity::isOnGround, new DoNothing(200, 400)), 5))
-                )))
+                getRandomStrollBehavior()
+//                Pair.of(99, new UpdateActivityFromSchedule())
         );
     }
 
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getHuntPackage() {
         return ImmutableList.of(
-            Pair.of(0, new HippogryphRandomHunt<>())
+                getRandomLookBehavior(),
+                Pair.of(1, new AnimalMakeLove(IafEntityRegistry.HIPPOGRYPH.get(), 0.6F)),
+                getTempedAndFollowBehavior(),
+                Pair.of(0, new StartAttacking<>(e -> {
+                    return !e.isTame();
+                }, entityHippogryph -> {
+                    return entityHippogryph.getBrain().getMemory(DragonMemoryModuleType.NEAREST_HUNTABLE);
+                })),
+                Pair.of(3, new StartAttacking<>(BehaviorHippogryph::findNearestValidAttackTarget)),
+                getRandomStrollBehavior()
         );
     }
 

@@ -1,16 +1,16 @@
 package com.github.alexthe666.iceandfire.entity.behavior.utils;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
+import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 
-public interface IAllMethodINeed {
+public interface IFlyableBehavior {
     boolean isOverAirLogic();
 
     boolean isFlying();
     boolean isHovering();
     void setFlying(boolean flying);
     void setHovering(boolean hovering);
-    void switchNavigator(boolean fly);
+    void switchNavigator(DragonMemoryModuleType.NavigationType navigationType);
 
     void setAirborneState(DragonBehaviorUtils.AirborneState state);
     DragonBehaviorUtils.AirborneState getAirborneState();
@@ -19,7 +19,7 @@ public interface IAllMethodINeed {
     void hover();
     void walkTo(WalkTarget walkTarget);
     void flightTo(WalkTarget walkTarget);
-    void hoverAt(WalkTarget walkTarget);
+    void hoverTo(WalkTarget walkTarget);
 
     boolean canMove();
     default boolean canLand() {

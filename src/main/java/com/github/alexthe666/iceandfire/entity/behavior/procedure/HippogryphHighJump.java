@@ -1,7 +1,7 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
 import com.github.alexthe666.iceandfire.entity.EntityHippogryph;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.datafixers.util.Pair;
@@ -12,7 +12,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
-public class HippogryphHighJump<E extends EntityHippogryph & IAllMethodINeed> extends FlightScene<E>{
+public class HippogryphHighJump<E extends EntityHippogryph & IFlyableBehavior> extends FlightScene<E>{
     public HippogryphHighJump() {
         super(ImmutableMap.of(
 

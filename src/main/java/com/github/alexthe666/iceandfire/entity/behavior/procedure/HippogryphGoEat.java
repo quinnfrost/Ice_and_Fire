@@ -1,7 +1,7 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
 import com.github.alexthe666.iceandfire.entity.EntityHippogryph;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Entity;
@@ -13,7 +13,7 @@ import net.minecraft.world.entity.player.Player;
 
 import java.util.function.Predicate;
 
-public class HippogryphGoEat<E extends Mob & IAllMethodINeed> extends GoToWantedItem<E> {
+public class HippogryphGoEat<E extends Mob & IFlyableBehavior> extends GoToWantedItem<E> {
     public HippogryphGoEat(float pSpeedModifier, boolean pHasTarget, int pMaxDistToWalk) {
         super(pSpeedModifier, pHasTarget, pMaxDistToWalk);
     }

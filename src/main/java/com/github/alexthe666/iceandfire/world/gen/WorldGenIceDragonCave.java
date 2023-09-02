@@ -9,6 +9,7 @@ import com.github.alexthe666.iceandfire.entity.IafEntityRegistry;
 import com.github.alexthe666.iceandfire.entity.util.HomePosition;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -45,7 +46,7 @@ public class WorldGenIceDragonCave extends WorldGenDragonCave {
         dragon.setVariant(rand.nextInt(4));
         dragon.absMoveTo(position.getX() + 0.5, position.getY() + 0.5, position.getZ() + 0.5, rand.nextFloat() * 360, 0);
         dragon.setInSittingPose(true);
-        dragon.homePos = new HomePosition(position, worldIn.getLevel());
+        dragon.setHomePos(GlobalPos.of(worldIn.getLevel().dimension(), position));
         dragon.setHunger(50);
         return dragon;
     }

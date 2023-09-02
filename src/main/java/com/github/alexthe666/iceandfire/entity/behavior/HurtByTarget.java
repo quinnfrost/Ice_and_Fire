@@ -1,6 +1,6 @@
 package com.github.alexthe666.iceandfire.entity.behavior;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
@@ -11,7 +11,7 @@ import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 
 @Deprecated
-public class HurtByTarget <E extends Mob & IAllMethodINeed> extends Behavior<E> {
+public class HurtByTarget <E extends Mob & IFlyableBehavior> extends Behavior<E> {
     public static final int AI_TICK_TIMESTAMP_OFFSET = -1;
     private static final TargetingConditions HURT_BY_TARGETING = TargetingConditions.forCombat().ignoreLineOfSight().ignoreInvisibilityTesting();
     private int timestamp;

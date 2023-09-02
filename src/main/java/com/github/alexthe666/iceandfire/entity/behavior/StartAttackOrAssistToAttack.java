@@ -1,9 +1,8 @@
 package com.github.alexthe666.iceandfire.entity.behavior;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IFlyableBehavior;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.behavior.StartAttacking;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
@@ -14,7 +13,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class StartAttackOrAssistToAttack<E extends TamableAnimal & IAllMethodINeed> extends StartAttacking<E> {
+public class StartAttackOrAssistToAttack<E extends TamableAnimal & IFlyableBehavior> extends StartAttacking<E> {
     private final Predicate<E> canAssistAttackPredicate;
     private final Function<E, Optional<? extends LivingEntity>> assistTargetFinderFunction;
     private Optional<? extends LivingEntity> assistTargetOptional;

@@ -1,4 +1,4 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.procedure;
 
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import net.minecraft.server.level.ServerLevel;
@@ -20,7 +20,7 @@ public class FollowTemptationTamed extends FollowTemptation {
     private final Predicate<TamableAnimal> followPredicate;
 
     public FollowTemptationTamed() {
-        this(tamableAnimal -> true, livingEntity -> 0.6f);
+        this(tamableAnimal -> true, livingEntity -> 0.8f);
     }
 
     public FollowTemptationTamed(Predicate<TamableAnimal> followPredicate, Function<LivingEntity, Float> pSpeedModifier) {

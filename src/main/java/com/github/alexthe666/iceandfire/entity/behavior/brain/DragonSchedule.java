@@ -7,6 +7,11 @@ import net.minecraft.world.entity.schedule.ScheduleBuilder;
 
 public class DragonSchedule {
     public static final Schedule TEST_SCHEDULE = getScheduleBuilder().build();
+    public static final Schedule HIPPOGRYPH = getScheduleBuilder()
+            .changeActivityAt(10, Activity.IDLE)
+            .changeActivityAt(2000, DragonActivity.HUNT)
+            .changeActivityAt(12000, Activity.IDLE)
+            .build();
 
     public static ScheduleBuilder getScheduleBuilder() {
         return new ScheduleBuilder(new Schedule());
@@ -18,5 +23,6 @@ public class DragonSchedule {
     }
     public static void buildDeferredRegistry() {
         BehaviorRegistry.SCHEDULES.register("test_schedule", () -> TEST_SCHEDULE);
+        BehaviorRegistry.SCHEDULES.register("hippogryph", () -> HIPPOGRYPH);
     }
 }

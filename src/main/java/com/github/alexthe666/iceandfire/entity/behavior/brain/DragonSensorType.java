@@ -12,6 +12,8 @@ import java.util.Optional;
 public class DragonSensorType {
     public static final SensorType<SensorDragonTest> SENSOR_TEST = new SensorType<>(SensorDragonTest::new);
 
+    public static final SensorType<SensorNearestLivingEntityCustom<LivingEntity>> NEARBY_LIVING_ENTITIES = new SensorType<>(SensorNearestLivingEntityCustom::new);
+
     public static final SensorType<SensorOwnerHurtTarget> OWNER_HURT_TARGET_SENSOR = new SensorType<>(() -> new SensorOwnerHurtTarget());
     public static final SensorType<SensorOwnerHurtByTarget> OWNER_HURT_BY_TARGET_SENSOR = new SensorType<>(() -> new SensorOwnerHurtByTarget());
     public static final SensorType<SensorNearestAdultTamed> NEAREST_ADULT_TAMED = new SensorType<>(
@@ -22,6 +24,8 @@ public class DragonSensorType {
     public static final SensorType<SensorHippogryphHuntable> HIPPOGRYPH_HUNTABLES = new SensorType<>(() -> new SensorHippogryphHuntable());
     public static void buildDeferredRegistry() {
         BehaviorRegistry.SENSORS.register("sensor_test", () -> SENSOR_TEST);
+        BehaviorRegistry.SENSORS.register("nearby_living_entities", () -> NEARBY_LIVING_ENTITIES);
+
         BehaviorRegistry.SENSORS.register("owner_hurt_target_sensor", () -> OWNER_HURT_TARGET_SENSOR);
         BehaviorRegistry.SENSORS.register("owner_hurt_by_target_sensor", () -> OWNER_HURT_BY_TARGET_SENSOR);
 

@@ -3,6 +3,7 @@ package com.github.alexthe666.iceandfire.entity.util;
 import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.block.IafBlockRegistry;
 import com.github.alexthe666.iceandfire.entity.*;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.misc.IafTagRegistry;
 import com.google.common.base.Predicate;
 import net.minecraft.core.BlockPos;
@@ -63,7 +64,7 @@ public class DragonUtils {
         }
         // Takes off if the escort position is no longer in water, mainly for using elytra to fly out of the water
         if (inWaterEscortPos.getY() - dragon.getY() > 8 + dragon.getYNavSize() && !dragon.level.getFluidState(inWaterEscortPos.below()).is(FluidTags.WATER)) {
-            dragon.setHovering(true);
+            dragon.setAirborneState(DragonBehaviorUtils.AirborneState.TAKEOFF);
         }
         // Swim directly to the escort position
         return inWaterEscortPos;
@@ -73,12 +74,12 @@ public class DragonUtils {
         float radius = 12 * (0.7F * dragon.getRenderSize() / 3);
         float neg = dragon.getRandom().nextBoolean() ? 1 : -1;
         float renderYawOffset = dragon.yBodyRot;
-        if (dragon.hasHomePosition && dragon.homePos != null) {
+        if (dragon.getHomePos().isPresent()) {
             BlockPos dragonPos = dragon.blockPosition();
             BlockPos ground = dragon.level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dragonPos);
             int distFromGround = (int) dragon.getY() - ground.getY();
             for (int i = 0; i < 10; i++) {
-                BlockPos homePos = dragon.homePos.getPosition();
+                BlockPos homePos = dragon.getHomePos().get().pos();
                 BlockPos pos = new BlockPos(homePos.getX() + dragon.getRandom().nextInt(IafConfig.dragonWanderFromHomeDistance * 2) - IafConfig.dragonWanderFromHomeDistance, (distFromGround > 16 ? (int) Math.min(IafConfig.maxDragonFlight, dragon.getY() + dragon.getRandom().nextInt(16) - 8) : (int) dragon.getY() + dragon.getRandom().nextInt(16) + 1), (homePos.getZ() + dragon.getRandom().nextInt(IafConfig.dragonWanderFromHomeDistance * 2) - IafConfig.dragonWanderFromHomeDistance));
                 if (dragon.getDistanceSquared(Vec3.atCenterOf(pos)) > 6 && !dragon.isTargetBlocked(Vec3.atCenterOf(pos))) {
                     return pos;

@@ -30,10 +30,10 @@ public class SensorNearestItemTamed extends Sensor<TamableAnimal> {
             return true;
         });
         list.sort(Comparator.comparingDouble(pEntity::distanceToSqr));
-        Optional<ItemEntity> optional = list.stream().filter((p_26706_) -> {
-            return pEntity.wantsToPickUp(p_26706_.getItem());
-        }).filter((p_26701_) -> {
-            return p_26701_.closerThan(pEntity, MAX_DISTANCE_TO_WANTED_ITEM);
+        Optional<ItemEntity> optional = list.stream().filter((itemEntity) -> {
+            return pEntity.wantsToPickUp(itemEntity.getItem());
+        }).filter((itemEntity) -> {
+            return itemEntity.closerThan(pEntity, MAX_DISTANCE_TO_WANTED_ITEM);
         }).filter(pEntity::hasLineOfSight).findFirst();
         brain.setMemory(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, optional);
     }

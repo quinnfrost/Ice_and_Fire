@@ -48,7 +48,7 @@ public class DragonFlightUtils {
         }
         // Takes off if the escort position is no longer in water, mainly for using elytra to fly out of the water
         if (inWaterEscortPos.getY() - dragon.getY() > 8 + dragon.getYNavSize() && !dragon.level.getFluidState(inWaterEscortPos.below()).is(FluidTags.WATER)) {
-            dragon.setHovering(true);
+            dragon.setAirborneState(DragonBehaviorUtils.AirborneState.TAKEOFF);
         }
         // Swim directly to the escort position
         return inWaterEscortPos;
@@ -80,12 +80,12 @@ public class DragonFlightUtils {
         float neg = dragon.getRandom().nextBoolean() ? 1 : -1;
         float renderYawOffset = dragon.yBodyRot;
         // Wander around roost
-        if (dragon.hasHomePosition && dragon.homePos != null) {
+        if (dragon.getHomePos().isPresent()) {
             BlockPos dragonPos = dragon.blockPosition();
             BlockPos ground = dragon.level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dragonPos);
             int distFromGround = (int) dragon.getY() - ground.getY();
             for (int i = 0; i < 10; i++) {
-                BlockPos homePos = dragon.homePos.getPosition();
+                BlockPos homePos = dragon.getHomePos().get().pos();
                 // Get a random position
                 BlockPos pos = new BlockPos(
                         homePos.getX() + dragon.getRandom().nextInt(IafConfig.dragonWanderFromHomeDistance * 2) - IafConfig.dragonWanderFromHomeDistance,
