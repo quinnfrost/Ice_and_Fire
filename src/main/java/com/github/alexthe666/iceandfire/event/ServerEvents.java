@@ -7,11 +7,9 @@ import com.github.alexthe666.iceandfire.entity.*;
 import com.github.alexthe666.iceandfire.entity.ai.AiDebug;
 import com.github.alexthe666.iceandfire.entity.ai.EntitySheepAIFollowCyclops;
 import com.github.alexthe666.iceandfire.entity.ai.VillagerAIFearUntamed;
+import com.github.alexthe666.iceandfire.entity.debug.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.props.*;
-import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
-import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
-import com.github.alexthe666.iceandfire.entity.util.IHearsSiren;
-import com.github.alexthe666.iceandfire.entity.util.IVillagerFear;
+import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.item.*;
 import com.github.alexthe666.iceandfire.message.MessagePlayerHitMultipart;
 import com.github.alexthe666.iceandfire.message.MessageSwingArm;
@@ -58,6 +56,7 @@ import net.minecraft.world.level.storage.loot.predicates.LootItemRandomChanceCon
 import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.event.LootTableLoadEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.*;
@@ -403,6 +402,23 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityUseItem(PlayerInteractEvent.RightClickItem event) {
+        if (event.getEntityLiving() instanceof Player player && event.getItemStack().getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
+            // Do raytrace
+            HitResult result = RayTraceUtils.getTargetBlockOrEntity(player, 256, null);
+            if (result instanceof EntityHitResult && ((EntityHitResult) result).getEntity() instanceof LivingEntity entity) {
+                // Select debug entity
+                if (!event.getWorld().isClientSide() && entity instanceof Mob target) {
+                    if (Pathfinding.isDebug()) {
+                        if (DebugUtils.isTracking(player, target)) {
+                            DebugUtils.stopTracking(player);
+                        } else {
+                            DebugUtils.startTracking(player, target);
+                        }
+                    }
+                }
+           }
+        }
+
         if (event.getEntityLiving() instanceof Player && event.getEntityLiving().getXRot() > 87 && event.getEntityLiving().getVehicle() != null && event.getEntityLiving().getVehicle() instanceof EntityDragonBase) {
             ((EntityDragonBase) event.getEntityLiving().getVehicle()).mobInteract((Player) event.getEntityLiving(), event.getHand());
         }
