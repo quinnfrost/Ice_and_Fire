@@ -1086,10 +1086,10 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     public @NotNull InteractionResult interactAt(Player player, @NotNull Vec3 vec, @NotNull InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         int lastDeathStage = Math.min(this.getAgeInDays() / 5, 25);
-        if (stack.getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
-            logic.debug();
-            return InteractionResult.SUCCESS;
-        }
+//        if (stack.getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
+//            logic.debug();
+//            return InteractionResult.SUCCESS;
+//        }
         if (this.isModelDead() && this.getDeathStage() < lastDeathStage && player.mayBuild()) {
             if (!level().isClientSide && !stack.isEmpty() && stack.getItem() != null && stack.getItem() == Items.GLASS_BOTTLE && this.getDeathStage() < lastDeathStage / 2 && IafConfig.dragonDropBlood) {
                 if (!player.isCreative()) {
@@ -1142,10 +1142,10 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             stack = player.getItemInHand(hand);
         }
 
-        if (stack.getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
-            logic.debug();
-            return InteractionResult.SUCCESS;
-        }
+//        if (stack.getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
+//            logic.debug();
+//            return InteractionResult.SUCCESS;
+//        }
         if (!this.isModelDead()) {
             if (stack.getItem() == IafItemRegistry.CREATIVE_DRAGON_MEAL.get()) {
                 this.setTame(true);
