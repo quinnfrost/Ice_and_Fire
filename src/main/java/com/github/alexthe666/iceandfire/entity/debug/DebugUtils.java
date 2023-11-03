@@ -1,9 +1,12 @@
 package com.github.alexthe666.iceandfire.entity.debug;
 
 import com.github.alexthe666.iceandfire.IceAndFire;
+import com.github.alexthe666.iceandfire.client.gui.overlay.OverlayInfoPanel;
+import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderNode;
 import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.AbstractPathJob;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,12 +14,12 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class DebugUtils {
     public static boolean EXTENDED_DEBUG = true;
@@ -76,10 +79,96 @@ public class DebugUtils {
         return Optional.empty();
     }
 
-    public static void onTrackerUpdate(Player player) {
-        if (getTrackingMob(player).isPresent()) {
-            player.displayClientMessage(Component.nullToEmpty("Mob position: " + getTrackingMob(player).get().blockPosition().toString()), true);
+    public static String formatBlockPos(BlockPos pos) {
+        if (pos != null) {
+            return String.format("%d, %d, %d", pos.getX(), pos.getY(), pos.getZ());
+        } else {
+            return "-, -, -";
         }
+    }
 
+    public static String formatVector(Vec3 vector3d) {
+        if (vector3d != null) {
+            return String.format("%.4f, %.4f, %.4f", vector3d.x(), vector3d.y(), vector3d.z());
+        } else {
+            return "-, -, -";
+        }
+    }
+
+    public static double getSpeed(Mob mob) {
+//        double dX = mob.getX() - mob.xOld;
+//        double dY = mob.getY() - mob.yOld;
+//        double dZ = mob.getZ() - mob.zOld;
+        return mob.getPosition(1.0f).distanceTo(new Vec3(mob.xOld, mob.yOld, mob.zOld)) / 0.05;
+    }
+
+    public static List<String> getEntityNameLong(PathfinderMob mob) {
+        return List.of(String.format("%s \"%s\" [%s] (%.1f/%s)",
+                                     mob.getName().getString(),
+                                     mob.getCustomName() == null ? "-" : mob.getCustomName(),
+                                     mob.getEncodeId(),
+                                     mob.getHealth(),
+                                     Objects.toString((mob.getAttribute(
+                                             Attributes.MAX_HEALTH).getValue()), "-")
+                       )
+        );
+    }
+
+    public static List<String> getPositionInfo(PathfinderMob mob) {
+        return List.of(String.format("Pos: %.5f, %.5f, %.5f ",
+                                     mob.position().x,
+                                     mob.position().y,
+                                     mob.position().z
+                       ) + String.format("[%d, %d, %d]",
+                                         mob.blockPosition().getX(),
+                                         mob.blockPosition().getY(),
+                                         mob.blockPosition().getZ()
+                       ),
+                       String.format("Rot: %.2f, %.2f ", mob.getXRot(), mob.getYRot())
+        );
+    }
+
+    public static List<String> getPositionInfo(PathfinderMob mobEntity, Player player) {
+        return List.of(String.format("Pos: %.5f, %.5f, %.5f ",
+                                     mobEntity.position().x,
+                                     mobEntity.position().y,
+                                     mobEntity.position().z
+                       ) + String.format("[%d, %d, %d] ",
+                                         mobEntity.blockPosition().getX(),
+                                         mobEntity.blockPosition().getY(),
+                                         mobEntity.blockPosition().getZ()
+                       ) + String.format("(%.2f)", mobEntity.distanceTo(player)),
+                       String.format("Rot: %.2f, %.2f ", mobEntity.getXRot(), mobEntity.getYRot())
+                               + String.format("(%s)", mobEntity.getDirection()),
+                       "Motion: " + String.format("%.5f, %.5f, %.5f (%.2f)",
+                                                  mobEntity.getDeltaMovement().x,
+                                                  mobEntity.getDeltaMovement().y,
+                                                  mobEntity.getDeltaMovement().z,
+                                                  getSpeed(mobEntity)
+                       ),
+                       "Facing: " + String.format("%s", formatVector(mobEntity.getLookAngle()))
+        );
+    }
+
+    public static void onTrackerUpdate(Player player) {
+        getTrackingMob(player).ifPresent(pathfinderMob -> {
+            OverlayInfoPanel.bufferInfoLeft = getTargetInfoString(pathfinderMob, player);
+            RenderNode.setRenderPos(2, pathfinderMob.position().add(pathfinderMob.getDeltaMovement().scale(4f)), pathfinderMob.position(), 25555);
+        });
+
+    }
+
+    public static List<String> getTargetInfoString(PathfinderMob mobEntity, Player player) {
+        if (mobEntity == null) {
+            return new ArrayList<>();
+        }
+        mobEntity.level().getProfiler().push("debugString");
+
+        List<String> list = new ArrayList<>();
+
+        list.addAll(getEntityNameLong(mobEntity));
+        list.addAll(getPositionInfo(mobEntity, player));
+
+        return list;
     }
 }
