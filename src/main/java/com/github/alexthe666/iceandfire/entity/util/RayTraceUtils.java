@@ -27,7 +27,7 @@ public class RayTraceUtils {
             entityRayTraceDistance = (float) Math.sqrt(entity.distanceToSqr(blockRayTraceResult.getLocation()));
         }
         // Limit the max ray trace distance to the first block it sees
-        EntityHitResult entityRayTraceResult = getTargetEntity(entity, entityRayTraceDistance, 1.0f, null);
+        EntityHitResult entityRayTraceResult = getTargetEntity(entity, entityRayTraceDistance, 1.0f, excludeEntity);
         if (entityRayTraceResult != null) {
             return entityRayTraceResult;
         } else {

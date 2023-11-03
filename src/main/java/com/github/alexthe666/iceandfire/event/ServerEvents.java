@@ -404,15 +404,18 @@ public class ServerEvents {
     public void onEntityUseItem(PlayerInteractEvent.RightClickItem event) {
         if (event.getEntityLiving() instanceof Player player && event.getItemStack().getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
             // Do raytrace
-            HitResult result = RayTraceUtils.getTargetBlockOrEntity(player, 256, null);
-            if (result instanceof EntityHitResult && ((EntityHitResult) result).getEntity() instanceof LivingEntity entity) {
+            HitResult result = RayTraceUtils.getTargetBlockOrEntity(player, 256, entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart);
+            if (result instanceof EntityHitResult) {
                 // Select debug entity
-                if (!event.getWorld().isClientSide() && entity instanceof Mob target) {
+                Entity entity = ((EntityHitResult) result).getEntity();
+                if (!event.getWorld().isClientSide()) {
                     if (Pathfinding.isDebug()) {
-                        if (DebugUtils.isTracking(player, target)) {
+                        if (DebugUtils.isTracking(player, entity)) {
                             DebugUtils.stopTracking(player);
                         } else {
-                            DebugUtils.startTracking(player, target);
+                            if (entity instanceof PathfinderMob target || entity instanceof EntityMutlipartPart part) {
+                                DebugUtils.switchTracking(player, entity);
+                            }
                         }
                     }
                 }
@@ -430,6 +433,11 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityUpdate(LivingEvent.LivingUpdateEvent event) {
+        if (!event.getEntity().level.isClientSide) {
+            if (DebugUtils.EXTENDED_DEBUG && event.getEntity() instanceof Player player && DebugUtils.isTracking(player)) {
+                DebugUtils.onTrackerUpdate(player);
+            }
+        }
 
         if (ChainProperties.hasChainData(event.getEntityLiving())) {
             ChainProperties.tickChain(event.getEntityLiving());
