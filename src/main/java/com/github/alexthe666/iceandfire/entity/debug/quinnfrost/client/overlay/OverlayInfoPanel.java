@@ -1,4 +1,4 @@
-package com.github.alexthe666.iceandfire.client.gui.overlay;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;

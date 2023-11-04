@@ -4,22 +4,25 @@ import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.block.IafBlockRegistry;
 import com.github.alexthe666.iceandfire.datagen.tags.IafItemTags;
-import com.github.alexthe666.iceandfire.client.ClientGlow;
 import com.github.alexthe666.iceandfire.entity.*;
 import com.github.alexthe666.iceandfire.entity.ai.AiDebug;
 import com.github.alexthe666.iceandfire.entity.ai.EntitySheepAIFollowCyclops;
 import com.github.alexthe666.iceandfire.entity.ai.VillagerAIFearUntamed;
-import com.github.alexthe666.iceandfire.entity.debug.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.props.EntityDataProvider;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
 import com.github.alexthe666.iceandfire.entity.util.IVillagerFear;
-import com.github.alexthe666.iceandfire.entity.util.RayTraceUtils;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsCommon;
+import com.github.alexthe666.iceandfire.entity.props.*;
+import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
+import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
+import com.github.alexthe666.iceandfire.entity.util.IHearsSiren;
+import com.github.alexthe666.iceandfire.entity.util.IVillagerFear;
 import com.github.alexthe666.iceandfire.item.*;
 import com.github.alexthe666.iceandfire.message.MessagePlayerHitMultipart;
 import com.github.alexthe666.iceandfire.message.MessageSwingArm;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
-import com.github.alexthe666.iceandfire.message.debug.MessageDebugEntity;
 import com.github.alexthe666.iceandfire.misc.IafDamageRegistry;
 import com.github.alexthe666.iceandfire.misc.IafTagRegistry;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
@@ -63,7 +66,6 @@ import net.minecraft.world.level.storage.loot.predicates.LootItemRandomChanceCon
 import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.event.LootTableLoadEvent;
 import net.minecraftforge.event.entity.EntityStruckByLightningEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
@@ -465,27 +467,8 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityUseItem(PlayerInteractEvent.RightClickItem event) {
-        if (event.getEntity() != null && event.getItemStack().getItem() == IafItemRegistry.DRAGON_DEBUG_STICK.get()) {
-            Player player = event.getEntity();
-            // Do raytrace
-            HitResult result = RayTraceUtils.getTargetBlockOrEntity(player, 256, entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart);
-            if (result instanceof EntityHitResult) {
-                // Select debug entity
-                Entity entity = ((EntityHitResult) result).getEntity();
-                ClientGlow.setGlowing(DebugUtils.getDebuggableTarget(entity), 10);
-                if (!event.getLevel().isClientSide()) {
-                    if (Pathfinding.isDebug()) {
-//                        if (DebugUtils.isTracking(player, entity)) {
-//                            DebugUtils.stopTracking(player);
-//                        } else {
-//                            if (entity instanceof PathfinderMob target || entity instanceof EntityMutlipartPart part) {
-//                                DebugUtils.switchTracking(player, entity);
-//                            }
-//                        }
-                        IceAndFire.sendMSGToServer(new MessageDebugEntity(entity.getId()));
-                    }
-                }
-            }
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            DebuggerEventsCommon.onEntityUseItem(event);
         }
         if (event.getEntity() != null && event.getEntity().getXRot() > 87 && event.getEntity().getVehicle() != null && event.getEntity().getVehicle() instanceof EntityDragonBase) {
             ((EntityDragonBase) event.getEntity().getVehicle()).mobInteract(event.getEntity(), event.getHand());
@@ -498,10 +481,8 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityUpdate(LivingEvent.LivingTickEvent event) {
-        if (!event.getEntity().level().isClientSide) {
-            if (DebugUtils.EXTENDED_DEBUG && event.getEntity() instanceof Player player && DebugUtils.isTracking(player)) {
-                DebugUtils.onTrackerUpdate(player);
-            }
+        if (event.getEntity() instanceof Player && ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            DebuggerEventsCommon.onEntityUpdate(event);
         }
         if (AiDebug.isEnabled() && event.getEntity() instanceof Mob && AiDebug.contains((Mob) event.getEntity())) {
             AiDebug.logData();

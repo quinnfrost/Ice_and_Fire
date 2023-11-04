@@ -3,6 +3,8 @@ package com.github.alexthe666.iceandfire;
 import com.github.alexthe666.iceandfire.config.BiomeConfig;
 import com.github.alexthe666.iceandfire.config.ConfigHolder;
 import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
+import com.github.alexthe666.iceandfire.entity.util.IHasCustomizableAttributes;
 import com.github.alexthe666.iceandfire.entity.util.MyrmexHive;
 import com.github.alexthe666.iceandfire.enums.EnumParticles;
 import com.github.alexthe666.iceandfire.event.ServerEvents;
@@ -114,6 +116,10 @@ public class CommonProxy {
 
     public void setup() {
         MinecraftForge.EVENT_BUS.register(new ServerEvents());
+
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            ExtendedEntityDebugger.registerCommon();
+        }
     }
 
     public void clientInit() {

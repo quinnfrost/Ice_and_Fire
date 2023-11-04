@@ -1,7 +1,7 @@
 package com.github.alexthe666.iceandfire.pathfinding.raycoms;
 
 import com.github.alexthe666.iceandfire.client.render.pathfinding.PathfindingDebugRenderer;
-import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderNode;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
