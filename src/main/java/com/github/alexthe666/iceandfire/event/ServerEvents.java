@@ -3,6 +3,7 @@ package com.github.alexthe666.iceandfire.event;
 import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.block.IafBlockRegistry;
+import com.github.alexthe666.iceandfire.client.ClientGlow;
 import com.github.alexthe666.iceandfire.entity.*;
 import com.github.alexthe666.iceandfire.entity.ai.AiDebug;
 import com.github.alexthe666.iceandfire.entity.ai.EntitySheepAIFollowCyclops;
@@ -14,6 +15,7 @@ import com.github.alexthe666.iceandfire.item.*;
 import com.github.alexthe666.iceandfire.message.MessagePlayerHitMultipart;
 import com.github.alexthe666.iceandfire.message.MessageSwingArm;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
+import com.github.alexthe666.iceandfire.message.debug.MessageDebugEntity;
 import com.github.alexthe666.iceandfire.misc.IafDamageRegistry;
 import com.github.alexthe666.iceandfire.misc.IafTagRegistry;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
@@ -408,15 +410,17 @@ public class ServerEvents {
             if (result instanceof EntityHitResult) {
                 // Select debug entity
                 Entity entity = ((EntityHitResult) result).getEntity();
+                ClientGlow.setGlowing(DebugUtils.getDebuggableTarget(entity), 10);
                 if (!event.getWorld().isClientSide()) {
                     if (Pathfinding.isDebug()) {
-                        if (DebugUtils.isTracking(player, entity)) {
-                            DebugUtils.stopTracking(player);
-                        } else {
-                            if (entity instanceof PathfinderMob target || entity instanceof EntityMutlipartPart part) {
-                                DebugUtils.switchTracking(player, entity);
-                            }
-                        }
+//                        if (DebugUtils.isTracking(player, entity)) {
+//                            DebugUtils.stopTracking(player);
+//                        } else {
+//                            if (entity instanceof PathfinderMob target || entity instanceof EntityMutlipartPart part) {
+//                                DebugUtils.switchTracking(player, entity);
+//                            }
+//                        }
+                        IceAndFire.sendMSGToServer(new MessageDebugEntity(entity.getId()));
                     }
                 }
            }

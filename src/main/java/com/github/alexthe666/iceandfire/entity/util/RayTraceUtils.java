@@ -1,5 +1,6 @@
 package com.github.alexthe666.iceandfire.entity.util;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
@@ -101,5 +102,30 @@ public class RayTraceUtils {
                 new ClipContext(vector3d, vector3d2, blockMode, fluidMode, entity)
         );
         return blockRayTraceResult;
+    }
+
+    /**
+     * Find out if the target's owner nbt tag matches the input owner's UUID
+     * If any of the input is null, return false
+     *
+     * @param target The entity's owner to determine
+     * @param owner  Owner to determine
+     * @return True if two matches, False if two do not match or cannot be owned
+     */
+    public static boolean isOwner(@Nullable LivingEntity target, @Nullable LivingEntity owner) {
+        if (target == null || owner == null) {
+            return false;
+        }
+        try {
+            CompoundTag compoundNBT = new CompoundTag();
+            target.addAdditionalSaveData(compoundNBT);
+            if (compoundNBT.getUUID("Owner").equals(owner.getUUID())) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }

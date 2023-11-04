@@ -11,6 +11,8 @@ import com.github.alexthe666.iceandfire.inventory.IafContainerRegistry;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.loot.IafLootRegistry;
 import com.github.alexthe666.iceandfire.message.*;
+import com.github.alexthe666.iceandfire.message.debug.MessageClientDraw;
+import com.github.alexthe666.iceandfire.message.debug.MessageDebugEntity;
 import com.github.alexthe666.iceandfire.recipe.IafRecipeRegistry;
 import com.github.alexthe666.iceandfire.recipe.IafRecipeSerializers;
 import com.github.alexthe666.iceandfire.world.IafProcessors;
@@ -210,6 +212,18 @@ public class IceAndFire {
             IafVillagerRegistry.setup();
             IafLootRegistry.init();
         });
+
+        NETWORK_WRAPPER.messageBuilder(MessageClientDraw.class, packetsRegistered++)
+                .encoder(MessageClientDraw::encoder)
+                .decoder(MessageClientDraw::decoder)
+                .consumer(MessageClientDraw::handler)
+                .add();
+
+        NETWORK_WRAPPER.messageBuilder(MessageDebugEntity.class, packetsRegistered++)
+                .encoder(MessageDebugEntity::encoder)
+                .decoder(MessageDebugEntity::decoder)
+                .consumer(MessageDebugEntity::handler)
+                .add();
     }
 
     private void setupClient(final FMLClientSetupEvent event) {

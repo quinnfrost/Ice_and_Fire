@@ -1,23 +1,21 @@
 package com.github.alexthe666.iceandfire.entity.debug;
 
 import com.github.alexthe666.iceandfire.IceAndFire;
-import com.github.alexthe666.iceandfire.client.gui.overlay.OverlayInfoPanel;
-import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderNode;
 import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
+import com.github.alexthe666.iceandfire.message.debug.MessageClientDraw;
+import com.github.alexthe666.iceandfire.message.debug.MessageDebugEntity;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.AbstractPathJob;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -48,7 +46,7 @@ public class DebugUtils {
 
     public static boolean switchTracking(Player player, Entity entity) {
         if (isTracking(player, entity)) {
-            stopTracking(player);
+            stopTracking(player, true);
             return false;
         } else {
             startTracking(player, entity);
@@ -68,12 +66,23 @@ public class DebugUtils {
         }
     }
 
-    public static void stopTracking(Player player) {
+    public static void stopTracking(Player player, boolean clearScreen) {
         getTrackingMap().remove(player);
-        IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()),
-                                   (ServerPlayer) player
-        );
+        if (clearScreen) {
+            IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()),
+                                       (ServerPlayer) player
+            );
+            IceAndFire.sendMSGToPlayer(new MessageDebugEntity(),
+                                       (ServerPlayer) player
+            );
+
+        }
+
         player.displayClientMessage(Component.nullToEmpty("Stopped tracking"), false);
+    }
+
+    public static void stopTracking(Player player) {
+        stopTracking(player, true);
     }
 
     public static Optional<PathfinderMob> getTrackingMob(Player player) {
@@ -85,7 +94,7 @@ public class DebugUtils {
         }
         // Failed to get tracking mob, this might because wrong type of entity is added to track list or player is in another dimension
         // Either way, we clear the player from track list
-        stopTracking(player);
+        stopTracking(player, true);
         return Optional.empty();
     }
 
@@ -162,8 +171,21 @@ public class DebugUtils {
 
     public static void onTrackerUpdate(Player player) {
         getTrackingMob(player).ifPresent(pathfinderMob -> {
-            OverlayInfoPanel.bufferInfoLeft = getTargetInfoString(pathfinderMob, player);
-            RenderNode.setRenderPos(2, pathfinderMob.position().add(pathfinderMob.getDeltaMovement().scale(4f)), pathfinderMob.position(), 25555);
+//            OverlayInfoPanel.bufferInfoLeft = getTargetInfoString(pathfinderMob, player);
+//            RenderNode.setRenderPos(2, pathfinderMob.position().add(pathfinderMob.getDeltaMovement().scale(4f)), pathfinderMob.position(), 25555);
+            IceAndFire.sendMSGToPlayer(new MessageDebugEntity(pathfinderMob.getId(),
+                                                              new ArrayList<>(),
+                                                              getTargetInfoString(pathfinderMob, player)
+                                       ),
+                                       (ServerPlayer) player
+            );
+            IceAndFire.sendMSGToPlayer(new MessageClientDraw(25556,
+                                                             pathfinderMob.position().add(pathfinderMob.getDeltaMovement().scale(
+                                                                     4f)),
+                                                             pathfinderMob.position()
+                                       ),
+                                       (ServerPlayer) player
+            );
         });
 
     }
