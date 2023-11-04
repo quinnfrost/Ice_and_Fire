@@ -5,10 +5,11 @@ import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.client.gui.GuiMyrmexAddRoom;
 import com.github.alexthe666.iceandfire.client.gui.GuiMyrmexStaff;
 import com.github.alexthe666.iceandfire.client.gui.bestiary.GuiBestiary;
-import com.github.alexthe666.iceandfire.client.gui.overlay.OverlayRenderEvent;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayRenderEvent;
 import com.github.alexthe666.iceandfire.client.particle.*;
 import com.github.alexthe666.iceandfire.client.render.entity.layer.LayerDragonArmor;
-import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderEvent;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderEvent;
 import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
 import com.github.alexthe666.iceandfire.entity.util.MyrmexHive;
 import com.github.alexthe666.iceandfire.enums.EnumParticles;
@@ -57,8 +58,9 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new PlayerRenderEvents());
         MinecraftForge.EVENT_BUS.register(new ClientEvents());
 
-        MinecraftForge.EVENT_BUS.register(new OverlayRenderEvent(Minecraft.getInstance()));
-        MinecraftForge.EVENT_BUS.register(RenderEvent.class);
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            ExtendedEntityDebugger.registerClient();
+        }
     }
 
     @Override

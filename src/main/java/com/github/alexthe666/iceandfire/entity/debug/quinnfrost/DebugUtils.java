@@ -1,10 +1,10 @@
-package com.github.alexthe666.iceandfire.entity.debug;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost;
 
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
-import com.github.alexthe666.iceandfire.message.debug.MessageClientDraw;
-import com.github.alexthe666.iceandfire.message.debug.MessageDebugEntity;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageClientDraw;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageDebugEntity;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.AbstractPathJob;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -20,7 +20,6 @@ import net.minecraft.world.phys.Vec3;
 import java.util.*;
 
 public class DebugUtils {
-    public static boolean EXTENDED_DEBUG = true;
 
     private static Map<Player, UUID> getTrackingMap() {
         return AbstractPathJob.trackingMap;
@@ -56,7 +55,7 @@ public class DebugUtils {
 
     public static void startTracking(Player player, Entity entity) {
         // Handle debug path render
-        if (EXTENDED_DEBUG) {
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
             PathfinderMob target = getDebuggableTarget(entity);
             if (target == null) {
                 return;

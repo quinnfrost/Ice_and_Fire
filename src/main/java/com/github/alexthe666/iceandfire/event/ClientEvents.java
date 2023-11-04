@@ -2,14 +2,11 @@ package com.github.alexthe666.iceandfire.event;
 
 import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.IceAndFire;
-import com.github.alexthe666.iceandfire.client.ClientGlow;
 import com.github.alexthe666.iceandfire.client.ClientProxy;
 import com.github.alexthe666.iceandfire.client.IafKeybindRegistry;
 import com.github.alexthe666.iceandfire.client.gui.IceAndFireMainMenu;
-import com.github.alexthe666.iceandfire.client.gui.overlay.OverlayInfoPanel;
 import com.github.alexthe666.iceandfire.client.particle.CockatriceBeamRender;
 import com.github.alexthe666.iceandfire.client.render.entity.RenderChain;
-import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderNode;
 import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderPath;
 import com.github.alexthe666.iceandfire.client.render.tile.RenderFrozenState;
 import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
@@ -19,28 +16,22 @@ import com.github.alexthe666.iceandfire.entity.props.MiscProperties;
 import com.github.alexthe666.iceandfire.entity.props.SirenProperties;
 import com.github.alexthe666.iceandfire.entity.util.ICustomMoveController;
 import com.github.alexthe666.iceandfire.enums.EnumParticles;
-import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.message.MessageDragonControl;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.EntityViewRenderEvent;
 import net.minecraftforge.client.event.ScreenOpenEvent;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderLevelLastEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityMountEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -220,60 +211,4 @@ public class ClientEvents {
             }
         }
     }
-
-    @SubscribeEvent
-    public void onPlayerTick(TickEvent.PlayerTickEvent event){
-        int maxDistance = Minecraft.getInstance().options.renderDistance * 16;
-        LocalPlayer clientPlayerEntity = Minecraft.getInstance().player;
-
-        if (!OverlayInfoPanel.bufferInfoLeft.isEmpty() && clientPlayerEntity != null && clientPlayerEntity.isPassenger()) {
-            LivingEntity riding = (LivingEntity) clientPlayerEntity.getVehicle();
-            if (riding != null) {
-                RenderNode.setRenderPos(
-                        2,
-                        clientPlayerEntity.getPosition(1.0f).add(0, clientPlayerEntity.getEyeHeight(), 0).add(riding.getDeltaMovement().scale(2f)),
-                        clientPlayerEntity.getPosition(1.0f),
-                        null
-                );
-            }
-        }
-
-//        if (clientPlayerEntity != null && clientPlayerEntity.isShiftKeyDown() && (clientPlayerEntity.getItemInHand(
-//                InteractionHand.MAIN_HAND).getItem() == IafItemRegistry.DRAGON_BOW.get()
-//                || clientPlayerEntity.getItemInHand(InteractionHand.MAIN_HAND).getItem() == Items.BOW)) {
-//            OverlayCrossHair.renderScope = true;
-//            HitResult rayTraceResult = util.getTargetBlockOrEntity(clientPlayerEntity, maxDistance, null);
-//            if (rayTraceResult.getType() != HitResult.Type.MISS) {
-//                double distance = clientPlayerEntity.getLightProbePosition(1.0f).distanceTo(rayTraceResult.getLocation());
-//                OverlayCrossHair.scopeSuggestion = (float) distance;
-//                OverlayCrossHair.setCrossHairString(
-//                        Vector2f.CR_DISTANCE,
-//                        String.format("%.1f", distance),
-//                        2,
-//                        true
-//                );
-//            } else {
-//                OverlayCrossHair.setCrossHairString(
-//                        Vector2f.CR_DISTANCE,
-//                        "--",
-//                        2,
-//                        true
-//                );
-//            }
-//        } else {
-//            if (OverlayCrossHair.renderScope) {
-//                // Clear text is not implemented
-////                OverlayCrossHair.setCrossHairString(
-////                        Vector2f.CR_DISTANCE,
-////                        null,
-////                        1,
-////                        true
-////                );
-//                OverlayCrossHair.renderScope = false;
-//            }
-//        }
-
-        ClientGlow.tickGlowing();
-    }
-
 }

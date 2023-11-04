@@ -1,4 +1,4 @@
-package com.github.alexthe666.iceandfire.entity.util;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;

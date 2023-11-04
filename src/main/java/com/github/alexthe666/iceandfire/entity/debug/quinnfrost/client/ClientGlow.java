@@ -1,6 +1,6 @@
-package com.github.alexthe666.iceandfire.client;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client;
 
-import com.github.alexthe666.iceandfire.entity.util.RayTraceUtils;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.RayTraceUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;

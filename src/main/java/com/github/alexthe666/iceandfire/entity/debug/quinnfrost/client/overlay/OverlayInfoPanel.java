@@ -1,4 +1,4 @@
-package com.github.alexthe666.iceandfire.client.gui.overlay;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;

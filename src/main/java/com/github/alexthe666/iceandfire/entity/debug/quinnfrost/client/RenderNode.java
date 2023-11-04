@@ -1,4 +1,4 @@
-package com.github.alexthe666.iceandfire.client.render.pathfinding;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client;
 
 import com.mojang.blaze3d.vertex.*;
 import com.mojang.blaze3d.platform.GlStateManager;

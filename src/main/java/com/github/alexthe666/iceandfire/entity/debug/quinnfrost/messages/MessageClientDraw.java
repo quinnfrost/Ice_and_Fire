@@ -1,6 +1,6 @@
-package com.github.alexthe666.iceandfire.message.debug;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages;
 
-import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderNode;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkDirection;

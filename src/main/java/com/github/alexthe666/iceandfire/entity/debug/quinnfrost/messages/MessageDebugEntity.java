@@ -1,11 +1,10 @@
-package com.github.alexthe666.iceandfire.message.debug;
+package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages;
 
-import com.github.alexthe666.iceandfire.client.gui.overlay.OverlayInfoPanel;
-import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderNode;
-import com.github.alexthe666.iceandfire.entity.debug.DebugUtils;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayInfoPanel;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.phys.Vec3;
