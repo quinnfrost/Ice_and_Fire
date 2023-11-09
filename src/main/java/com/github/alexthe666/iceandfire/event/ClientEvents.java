@@ -11,6 +11,8 @@ import com.github.alexthe666.iceandfire.client.render.pathfinding.RenderPath;
 import com.github.alexthe666.iceandfire.client.render.tile.RenderFrozenState;
 import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
 import com.github.alexthe666.iceandfire.entity.EntitySiren;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsClient;
 import com.github.alexthe666.iceandfire.entity.props.FrozenProperties;
 import com.github.alexthe666.iceandfire.entity.props.MiscProperties;
 import com.github.alexthe666.iceandfire.entity.props.SirenProperties;
@@ -100,7 +102,9 @@ public class ClientEvents {
         if (event.getEntityLiving() instanceof Player) {
             Player player = (Player) event.getEntityLiving();
             if (player.level.isClientSide) {
-
+                if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+                    DebuggerEventsClient.scanDebugKeyPress(player);
+                }
                 if (player.getVehicle() instanceof ICustomMoveController) {
                     Entity entity = player.getVehicle();
                     ICustomMoveController moveController = ((Entity & ICustomMoveController) player.getVehicle());

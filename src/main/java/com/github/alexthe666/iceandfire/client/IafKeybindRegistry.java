@@ -1,5 +1,6 @@
 package com.github.alexthe666.iceandfire.client;
 
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.ClientRegistry;
@@ -9,6 +10,7 @@ public class IafKeybindRegistry {
     public static KeyMapping dragon_strike;
     public static KeyMapping dragon_down;
     public static KeyMapping dragon_change_view;
+    public static KeyMapping extended_debug;
 
     public static void init() {
         // Minecraft instance is null during data gen
@@ -22,5 +24,10 @@ public class IafKeybindRegistry {
         ClientRegistry.registerKeyBinding(dragon_strike);
         ClientRegistry.registerKeyBinding(dragon_down);
         ClientRegistry.registerKeyBinding(dragon_change_view);
+
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            extended_debug = new KeyMapping("key.extended_debug", -1, "key.categories.misc");
+            ClientRegistry.registerKeyBinding(extended_debug);
+        }
     }
 }
