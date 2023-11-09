@@ -14,8 +14,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public class DebuggerEventsCommon {
     public static void onEntityUseItem(PlayerInteractEvent.RightClickItem event) {
@@ -29,9 +31,10 @@ public class DebuggerEventsCommon {
             if (result instanceof EntityHitResult) {
                 // Select debug entity
                 Entity entity = ((EntityHitResult) result).getEntity();
-                ClientGlow.setGlowing(DebugUtils.getDebuggableTarget(entity), 10);
-                if (!event.getLevel().isClientSide()) {
-                    if (Pathfinding.isDebug()) {
+                DebugUtils.getDebuggableTarget(entity).ifPresent(mob -> {
+                    ClientGlow.setGlowing(mob, 10);
+                    if (!event.getLevel().isClientSide()) {
+                        if (Pathfinding.isDebug()) {
 //                        if (DebugUtils.isTracking(player, entity)) {
 //                            DebugUtils.stopTracking(player);
 //                        } else {
@@ -39,9 +42,11 @@ public class DebuggerEventsCommon {
 //                                DebugUtils.switchTracking(player, entity);
 //                            }
 //                        }
-                        IceAndFire.sendMSGToServer(new MessageDebugEntity(entity.getId()));
+                            IceAndFire.sendMSGToServer(new MessageDebugEntity(entity.getId()));
+                        }
                     }
-                }
+
+                });
             }
         }
 
@@ -54,6 +59,13 @@ public class DebuggerEventsCommon {
                     player)) {
                 DebugUtils.onTrackerUpdate(player);
             }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLivingDamage(LivingDamageEvent event) {
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            DebugUtils.onEntityDamage(event);
         }
     }
 }

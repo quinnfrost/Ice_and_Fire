@@ -12,6 +12,7 @@ import com.github.alexthe666.iceandfire.entity.props.EntityDataProvider;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
 import com.github.alexthe666.iceandfire.entity.util.IVillagerFear;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsCommon;
 import com.github.alexthe666.iceandfire.entity.props.*;
@@ -44,6 +45,8 @@ import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.WitherSkeleton;
 import net.minecraft.world.entity.player.Player;
@@ -321,6 +324,9 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onLivingAttacked(final LivingAttackEvent event) {
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            DebugUtils.onLivingAttacked(event);
+        }
         if (event.getSource() != null && event.getSource().getEntity() != null) {
             Entity attacker = event.getSource().getEntity();
 
@@ -420,9 +426,9 @@ public class ServerEvents {
 
             if (!data.chainData.getChainedTo().isEmpty()) {
                 ItemEntity entityitem = new ItemEntity(event.getEntity().level(),
-                        event.getEntity().getX(),
-                        event.getEntity().getY() + 1,
-                        event.getEntity().getZ(),
+                event.getEntity().getX(),
+                event.getEntity().getY() + 1,
+                event.getEntity().getZ(),
                         new ItemStack(IafItemRegistry.CHAIN.get(), data.chainData.getChainedTo().size()));
                 entityitem.setDefaultPickUpDelay();
                 event.getEntity().level().addFreshEntity(entityitem);
@@ -491,6 +497,21 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityInteract(final PlayerInteractEvent.EntityInteract event) {
+        // Handle creative dragon meal
+        if (event.getItemStack().getItem() == IafItemRegistry.CREATIVE_DRAGON_MEAL.get() && (event.getTarget() instanceof TamableAnimal || event.getTarget() instanceof AbstractHorse)) {
+            if (event.getTarget() instanceof TamableAnimal tamableAnimal) {
+                tamableAnimal.setTame(true);
+                tamableAnimal.tame(event.getEntity());
+            } else if (event.getTarget() instanceof AbstractHorse horse) {
+                horse.setTamed(true);
+                horse.tameWithName(event.getEntity());
+            }
+            if (!event.getEntity().isCreative()) {
+                event.getItemStack().shrink(1);
+            }
+            event.setCanceled(true);
+            event.setCancellationResult(InteractionResult.SUCCESS);
+        }
         // Handle chain removal
         if (event.getTarget() instanceof LivingEntity target) {
             EntityDataProvider.getCapability(target).ifPresent(data -> {
@@ -512,9 +533,13 @@ public class ServerEvents {
             if (AiDebug.isEnabled())
                 AiDebug.addEntity((Mob) event.getTarget());
             if (Pathfinding.isDebug()) {
-                if (AbstractPathJob.trackingMap.getOrDefault(event.getEntity(), UUID.randomUUID()).equals(event.getTarget().getUUID())) {
+                if (AbstractPathJob.trackingMap.getOrDefault(event.getEntity(),
+                                                             UUID.randomUUID()
+                ).equals(event.getTarget().getUUID())) {
                     AbstractPathJob.trackingMap.remove(event.getEntity());
-                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()), (ServerPlayer) event.getEntity());
+                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()),
+                                               (ServerPlayer) event.getEntity()
+                    );
                 } else {
                     AbstractPathJob.trackingMap.put(event.getEntity(), event.getTarget().getUUID());
                 }
@@ -581,11 +606,11 @@ public class ServerEvents {
     public static void onChestGenerated(LootTableLoadEvent event) {
         final ResourceLocation eventName = event.getName();
         final boolean condition1 = eventName.equals(BuiltInLootTables.SIMPLE_DUNGEON)
-                || eventName.equals(BuiltInLootTables.ABANDONED_MINESHAFT)
-                || eventName.equals(BuiltInLootTables.DESERT_PYRAMID)
-                || eventName.equals(BuiltInLootTables.JUNGLE_TEMPLE)
-                || eventName.equals(BuiltInLootTables.STRONGHOLD_CORRIDOR)
-                || eventName.equals(BuiltInLootTables.STRONGHOLD_CROSSING);
+            || eventName.equals(BuiltInLootTables.ABANDONED_MINESHAFT)
+            || eventName.equals(BuiltInLootTables.DESERT_PYRAMID)
+            || eventName.equals(BuiltInLootTables.JUNGLE_TEMPLE)
+            || eventName.equals(BuiltInLootTables.STRONGHOLD_CORRIDOR)
+            || eventName.equals(BuiltInLootTables.STRONGHOLD_CROSSING);
 
         if (condition1 || eventName.equals(BuiltInLootTables.VILLAGE_CARTOGRAPHER)) {
             LootPoolEntryContainer.Builder item = LootItem.lootTableItem(IafItemRegistry.MANUSCRIPT.get()).setQuality(20).setWeight(5);
@@ -593,10 +618,10 @@ public class ServerEvents {
             event.getTable().addPool(builder.build());
         }
         if (condition1
-                || eventName.equals(BuiltInLootTables.IGLOO_CHEST)
-                || eventName.equals(BuiltInLootTables.WOODLAND_MANSION)
-                || eventName.equals(BuiltInLootTables.VILLAGE_TOOLSMITH)
-                || eventName.equals(BuiltInLootTables.VILLAGE_ARMORER)) {
+            || eventName.equals(BuiltInLootTables.IGLOO_CHEST)
+            || eventName.equals(BuiltInLootTables.WOODLAND_MANSION)
+            || eventName.equals(BuiltInLootTables.VILLAGE_TOOLSMITH)
+            || eventName.equals(BuiltInLootTables.VILLAGE_ARMORER)) {
 
 
             LootPoolEntryContainer.Builder item = LootItem.lootTableItem(IafItemRegistry.SILVER_INGOT.get()).setQuality(15).setWeight(12);
@@ -604,11 +629,11 @@ public class ServerEvents {
             event.getTable().addPool(builder.build());
 
         } else if ((event.getName().equals(WorldGenFireDragonCave.FIRE_DRAGON_CHEST)
-                || event.getName().equals(WorldGenFireDragonCave.FIRE_DRAGON_CHEST_MALE)
-                || event.getName().equals(WorldGenIceDragonCave.ICE_DRAGON_CHEST)
-                || event.getName().equals(WorldGenIceDragonCave.ICE_DRAGON_CHEST_MALE)
-                || event.getName().equals(WorldGenLightningDragonCave.LIGHTNING_DRAGON_CHEST)
-                || event.getName().equals(WorldGenLightningDragonCave.LIGHTNING_DRAGON_CHEST_MALE))) {
+            || event.getName().equals(WorldGenFireDragonCave.FIRE_DRAGON_CHEST_MALE)
+            || event.getName().equals(WorldGenIceDragonCave.ICE_DRAGON_CHEST)
+            || event.getName().equals(WorldGenIceDragonCave.ICE_DRAGON_CHEST_MALE)
+            || event.getName().equals(WorldGenLightningDragonCave.LIGHTNING_DRAGON_CHEST)
+            || event.getName().equals(WorldGenLightningDragonCave.LIGHTNING_DRAGON_CHEST_MALE))) {
             LootPoolEntryContainer.Builder item = LootItem.lootTableItem(IafItemRegistry.WEEZER_BLUE_ALBUM.get()).setQuality(100).setWeight(1);
             LootPool.Builder builder = new LootPool.Builder().name("iaf_weezer").add(item).when(LootItemRandomChanceCondition.randomChance(0.01f)).setRolls(UniformGenerator.between(1, 1));
             event.getTable().addPool(builder.build());

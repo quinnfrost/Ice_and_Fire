@@ -144,7 +144,7 @@ public class OverlayInfoPanel {
         final int yOffsetLeft = 5;
         final int xOffsetRight = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         final int yOffsetRight = 5;
-        final int maxLineLength = 60;
+        final int maxLineLength = 50;
 
         Font fontRenderer = Minecraft.getInstance().font;
         int lineHeight = 10;
@@ -183,7 +183,7 @@ public class OverlayInfoPanel {
                                           0,
                                           15728880
                         );
-                        currentStringLeft = currentStringLeft.substring(maxLineLength);
+                        currentStringLeft = currentStringLeft.substring(maxLineLength - 1);
                         sublineCountLeft += 1;
                     }
                     fontRenderer.drawInBatch(
@@ -232,7 +232,7 @@ public class OverlayInfoPanel {
                                           0,
                                           15728880
                         );
-                        currentStringRight = currentStringRight.substring(maxLineLength);
+                        currentStringRight = currentStringRight.substring(maxLineLength - 1);
                         sublineCountRight += 1;
                     }
                     fontRenderer.drawInBatch(
