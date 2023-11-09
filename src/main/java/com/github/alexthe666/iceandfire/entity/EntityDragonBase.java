@@ -1190,21 +1190,21 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 //            return InteractionResult.SUCCESS;
 //        }
         if (!this.isModelDead()) {
-            if (stack.getItem() == IafItemRegistry.CREATIVE_DRAGON_MEAL.get()) {
-                this.setTame(true);
-                this.tame(player);
-                this.setHunger(this.getHunger() + 20);
-                this.heal(Math.min(this.getHealth(), (int) (this.getMaxHealth() / 2)));
-                this.playSound(SoundEvents.GENERIC_EAT, this.getSoundVolume(), this.getVoicePitch());
-                this.spawnItemCrackParticles(stack.getItem());
-                this.spawnItemCrackParticles(Items.BONE);
-                this.spawnItemCrackParticles(Items.BONE_MEAL);
-                this.eatFoodBonus(stack);
-                if (!player.isCreative()) {
-                    stack.shrink(1);
-                }
-                return InteractionResult.SUCCESS;
-            }
+//            if (stack.getItem() == IafItemRegistry.CREATIVE_DRAGON_MEAL.get()) {
+//                this.setTame(true);
+//                this.tame(player);
+//                this.setHunger(this.getHunger() + 20);
+//                this.heal(Math.min(this.getHealth(), (int) (this.getMaxHealth() / 2)));
+//                this.playSound(SoundEvents.GENERIC_EAT, this.getSoundVolume(), this.getVoicePitch());
+//                this.spawnItemCrackParticles(stack.getItem());
+//                this.spawnItemCrackParticles(Items.BONE);
+//                this.spawnItemCrackParticles(Items.BONE_MEAL);
+//                this.eatFoodBonus(stack);
+//                if (!player.isCreative()) {
+//                    stack.shrink(1);
+//                }
+//                return InteractionResult.SUCCESS;
+//            }
             if (this.isFood(stack) && this.shouldDropLoot()) {
                 this.setAge(0);
                 this.usePlayerItem(player, InteractionHand.MAIN_HAND, stack);

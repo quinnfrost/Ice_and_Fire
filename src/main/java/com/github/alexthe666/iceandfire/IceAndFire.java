@@ -5,6 +5,7 @@ import com.github.alexthe666.iceandfire.client.ClientProxy;
 import com.github.alexthe666.iceandfire.config.ConfigHolder;
 import com.github.alexthe666.iceandfire.entity.IafEntityRegistry;
 import com.github.alexthe666.iceandfire.entity.IafVillagerRegistry;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageClientDisplay;
 import com.github.alexthe666.iceandfire.entity.tile.IafTileEntityRegistry;
 import com.github.alexthe666.iceandfire.inventory.IafContainerRegistry;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
@@ -222,6 +223,12 @@ public class IceAndFire {
                 .encoder(MessageDebugEntity::encoder)
                 .decoder(MessageDebugEntity::decoder)
                 .consumer(MessageDebugEntity::handler)
+                .add();
+
+        NETWORK_WRAPPER.messageBuilder(MessageClientDisplay.class, packetsRegistered++)
+                .encoder(MessageClientDisplay::encoder)
+                .decoder(MessageClientDisplay::new)
+                .consumer(MessageClientDisplay::handler)
                 .add();
     }
 

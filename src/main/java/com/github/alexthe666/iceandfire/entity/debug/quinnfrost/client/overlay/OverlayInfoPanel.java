@@ -85,7 +85,7 @@ public class OverlayInfoPanel extends GuiComponent {
         final int yOffsetLeft = 5;
         final int xOffsetRight = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         final int yOffsetRight = 5;
-        final int maxLineLength = 60;
+        final int maxLineLength = 50;
 
         Font fontRenderer = Minecraft.getInstance().font;
         int lineHeight = 10;
@@ -103,7 +103,7 @@ public class OverlayInfoPanel extends GuiComponent {
                 } else {
                     while (currentStringLeft.length() >= maxLineLength) {
                         fontRenderer.draw(ms, currentStringLeft.substring(0, maxLineLength - 1), xOffsetLeft, yOffsetLeft + lineHeight * lineIndex + sublineHeight * sublineCountLeft, color.getRGB());
-                        currentStringLeft = currentStringLeft.substring(maxLineLength);
+                        currentStringLeft = currentStringLeft.substring(maxLineLength - 1);
                         sublineCountLeft += 1;
                     }
                     fontRenderer.draw(ms, currentStringLeft, xOffsetLeft, yOffsetLeft + lineHeight * lineIndex + sublineHeight * sublineCountLeft, color.getRGB());
@@ -119,7 +119,7 @@ public class OverlayInfoPanel extends GuiComponent {
                     while (currentStringRight.length() >= maxLineLength) {
                         String currentRenderString = currentStringRight.substring(0, maxLineLength - 1);
                         fontRenderer.draw(ms, currentRenderString, xOffsetRight - fontRenderer.width(currentRenderString), yOffsetRight + lineHeight * lineIndex + sublineHeight * sublineCountRight, color.getRGB());
-                        currentStringRight = currentStringRight.substring(maxLineLength);
+                        currentStringRight = currentStringRight.substring(maxLineLength - 1);
                         sublineCountRight += 1;
                     }
                     fontRenderer.draw(ms, currentStringRight, xOffsetRight - fontRenderer.width(currentStringRight), yOffsetRight + lineHeight * lineIndex + sublineHeight * sublineCountRight, color.getRGB());

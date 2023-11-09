@@ -3,6 +3,7 @@ package com.github.alexthe666.iceandfire.entity.debug.quinnfrost;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderEvent;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayRenderEvent;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsClient;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsCommon;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -19,7 +20,7 @@ public class ExtendedEntityDebugger {
 
     public static void registerCommon() {
         if (EXTENDED_DEBUG) {
-
+            MinecraftForge.EVENT_BUS.register(DebuggerEventsCommon.class);
         }
     }
 
