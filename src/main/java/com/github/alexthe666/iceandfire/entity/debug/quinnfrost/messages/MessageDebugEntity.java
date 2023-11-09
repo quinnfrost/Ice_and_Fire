@@ -1,5 +1,8 @@
 package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages;
 
+import com.github.alexthe666.iceandfire.IceAndFire;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlow;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayInfoPanel;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
@@ -94,14 +97,21 @@ public class MessageDebugEntity {
                     }
                     PathfinderMob targetEntity = (PathfinderMob) entity;
 
-                    for (Vec3 target:
-                            associatedTarget) {
-                        RenderNode.drawCube(2, target, false, null);
-                        RenderNode.drawLine(2, targetEntity.position(), target, null);
-                    }
+                    if (serverEntityInfo.size() != 0) {
 
-                    OverlayInfoPanel.bufferInfoLeft = serverEntityInfo;
-                    OverlayInfoPanel.bufferInfoRight = DebugUtils.getTargetInfoString(targetEntity, Minecraft.getInstance().player);
+                        for (Vec3 target :
+                                associatedTarget) {
+                            RenderNode.drawCube(2, target, false, null);
+                            RenderNode.drawLine(2, targetEntity.position(), target, null);
+                        }
+
+                        OverlayInfoPanel.bufferInfoLeft = serverEntityInfo;
+                        OverlayInfoPanel.bufferInfoRight = DebugUtils.getTargetInfoString(targetEntity,
+                                                                                          Minecraft.getInstance().player
+                        );
+                    } else {
+                        ClientGlow.setGlowing(targetEntity, 10);
+                    }
                 } else {
                     OverlayInfoPanel.bufferInfoLeft = new ArrayList<>();
                     OverlayInfoPanel.bufferInfoRight = new ArrayList<>();
@@ -113,9 +123,13 @@ public class MessageDebugEntity {
 //                } else {
 //                    DebugUtils.stopDebug();
 //                }
-                DebugUtils.switchTracking(contextSupplier.get().getSender(),
-                                          contextSupplier.get().getSender().level().getEntity(entityId)
-                );
+                DebugUtils.getDebuggableTarget(contextSupplier.get().getSender().level().getEntity(entityId)).ifPresent(
+                        pathfinderMob -> {
+                            DebugUtils.switchTracking(contextSupplier.get().getSender(), pathfinderMob);
+                            IceAndFire.sendMSGToPlayer(new MessageDebugEntity(pathfinderMob.getId()),
+                                                       contextSupplier.get().getSender());
+                        });
+
             }
         });
         return true;

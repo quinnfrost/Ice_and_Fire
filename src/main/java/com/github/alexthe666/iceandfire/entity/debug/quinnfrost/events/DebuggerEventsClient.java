@@ -1,11 +1,22 @@
 package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events;
 
+import com.github.alexthe666.iceandfire.IceAndFire;
+import com.github.alexthe666.iceandfire.client.IafKeybindRegistry;
+import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.RayTraceUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlow;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayInfoPanel;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageDebugEntity;
+import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
@@ -69,4 +80,31 @@ public class DebuggerEventsClient {
         ClientGlow.tickGlowing();
     }
 
+    public static void scanDebugKeyPress(Player player) {
+        if (IafKeybindRegistry.extended_debug.consumeClick()) {
+            // Do raytrace
+            HitResult result = RayTraceUtils.getTargetBlockOrEntity(player,
+                                                                    256,
+                                                                    entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart
+            );
+            if (result instanceof EntityHitResult) {
+                // Select debug entity
+                Entity entity = ((EntityHitResult) result).getEntity();
+//                ClientGlow.setGlowing(mob, 10);
+                if (player.level().isClientSide()) {
+                    if (Pathfinding.isDebug()) {
+//                        if (DebugUtils.isTracking(player, entity)) {
+//                            DebugUtils.stopTracking(player);
+//                        } else {
+//                            if (entity instanceof PathfinderMob target || entity instanceof EntityMutlipartPart part) {
+//                                DebugUtils.switchTracking(player, entity);
+//                            }
+//                        }
+                        IceAndFire.sendMSGToServer(new MessageDebugEntity(entity.getId()));
+                    }
+                }
+
+            }
+        }
+    }
 }
