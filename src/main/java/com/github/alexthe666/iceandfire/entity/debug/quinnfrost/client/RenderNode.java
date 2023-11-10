@@ -1,5 +1,8 @@
 package com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client;
 
+import com.github.alexthe666.iceandfire.pathfinding.raycoms.MNode;
+import com.github.alexthe666.iceandfire.pathfinding.raycoms.WorldEventContext;
+import com.github.alexthe666.iceandfire.pathfinding.raycoms.WorldRenderMacros;
 import com.mojang.blaze3d.vertex.*;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -9,10 +12,10 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
 
 import javax.annotation.Nullable;
 import java.awt.*;
@@ -156,7 +159,7 @@ public class RenderNode {
 
     }
 
-    public static void render(PoseStack matrixStack) {
+    public static void render(WorldEventContext ctx) {
         if (renderLineList.isEmpty() && renderCubeList.isEmpty() && renderStringList.isEmpty()) {
             return;
         }
@@ -167,40 +170,41 @@ public class RenderNode {
             double dz = vec.z();
 
 
-            matrixStack.pushPose();
-            matrixStack.translate(-dx, -dy, -dz);
-
-            RenderSystem.lineWidth(2f);
-            RenderSystem.enableDepthTest();
-//            RenderSystem.disableTexture();
-            RenderSystem.disableBlend();
+//            ctx.poseStack.pushPose();
+//            ctx.poseStack.translate(-dx, -dy, -dz);
+//
+//            RenderSystem.lineWidth(2f);
+//            RenderSystem.enableDepthTest();
+////            RenderSystem.disableTexture();
+//            RenderSystem.disableBlend();
 
             renderCubeList.forEach((integer, integerPairPair) -> {
                 Pair<Vec3, Boolean> renderInfo = integerPairPair.getSecond();
                 if (renderInfo.getSecond()) {
-                    renderCubeOutline(matrixStack, renderInfo.getFirst(), 1f);
+                    renderCubeOutline(ctx, renderInfo.getFirst(), 1f);
                 } else {
-                    renderCube(matrixStack, renderInfo.getFirst(), 0.1f);
+                    renderCube(ctx, renderInfo.getFirst(), 0.1f);
                 }
             });
 
             renderLineList.forEach((integer, integerPairPair) -> {
                 Pair<Vec3, Vec3> renderInfo = integerPairPair.getSecond();
-                renderLine(matrixStack, renderInfo.getFirst(), renderInfo.getSecond());
+                renderLine(ctx, renderInfo.getFirst(), renderInfo.getSecond());
+//                debugDrawNode(renderInfo.getFirst(), 0xffff0000, ctx, renderInfo.getSecond());
             });
 
             renderStringList.forEach((integer, integerPairPair) -> {
                 Pair<Vec3, String> renderInfo = integerPairPair.getSecond();
-                renderString(matrixStack, renderInfo.getFirst(), renderInfo.getSecond());
+                renderString(ctx, renderInfo.getFirst(), renderInfo.getSecond());
             });
 
-            matrixStack.popPose();
-            RenderSystem.disableDepthTest();
-            RenderSystem.lineWidth(1f);
+//            ctx.poseStack.popPose();
+//            RenderSystem.disableDepthTest();
+//            RenderSystem.lineWidth(1f);
         }
     }
 
-    public static void renderCubeOutline(PoseStack matrixStack, Vec3 nodePos, float edgeLength) {
+    public static void renderCubeOutline(WorldEventContext ctx, Vec3 nodePos, float edgeLength) {
         VoxelShape voxelShape = Shapes.box(
                 nodePos.x - edgeLength / 2f,
                 nodePos.y - edgeLength / 2f,
@@ -209,172 +213,174 @@ public class RenderNode {
                 nodePos.y + edgeLength / 2f,
                 nodePos.z + edgeLength / 2f
         );
-        renderVoxelShapeOutline(matrixStack, voxelShape);
+        renderVoxelShapeOutline(ctx, voxelShape);
     }
 
-    private static void renderVoxelShapeOutline(PoseStack matrixStack,
+    private static void renderVoxelShapeOutline(WorldEventContext ctx,
                                                 VoxelShape voxelShape
     ) {
         voxelShape.forAllEdges((x0, y0, z0, x1, y1, z1) -> {
-            renderLine(matrixStack, new Vec3(x0, y0, z0), new Vec3(x1, y1, z1));
+            renderLine(ctx, new Vec3(x0, y0, z0), new Vec3(x1, y1, z1));
         });
     }
 
-    public static void renderCube(PoseStack matrixStack, Vec3 nodePos, float edgeLength) {
+    public static void renderCube(WorldEventContext ctx, Vec3 nodePos, float edgeLength) {
         if (nodePos == null) {
             return;
         }
         Color color = Color.RED;
 
-        matrixStack.pushPose();
-        matrixStack.translate(nodePos.x(), nodePos.y(), nodePos.z());
+        ctx.poseStack.pushPose();
+        ctx.poseStack.translate(nodePos.x(), nodePos.y(), nodePos.z());
 
-        matrixStack.scale(edgeLength, edgeLength, edgeLength);
+        ctx.poseStack.scale(edgeLength, edgeLength, edgeLength);
 
-        final Tesselator tessellator = Tesselator.getInstance();
-        final BufferBuilder vertexBuffer = tessellator.getBuilder();
+        WorldRenderMacros.renderBox(ctx.bufferSource, ctx.poseStack, BlockPos.ZERO, BlockPos.ZERO, color.getRGB());
 
-        final Matrix4f matrix4f = matrixStack.last().pose();
-        vertexBuffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+//        final Tesselator tessellator = Tesselator.getInstance();
+//        final BufferBuilder vertexBuffer = tessellator.getBuilder();
+//
+//        final Matrix4f matrix4f = ctx.poseStack.last().pose();
+//        vertexBuffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+//
+//        //  X+
+//        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, -0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, -0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, 0.5f).color(color.getRed(),
+//                                                              color.getGreen(),
+//                                                              color.getBlue(),
+//                                                              color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, 0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//
+//        //  X-
+//        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, 0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, 0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, -0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, -0.5f).color(color.getRed(),
+//                                                                 color.getGreen(),
+//                                                                 color.getBlue(),
+//                                                                 color.getAlpha()
+//        ).endVertex();
+//
+//        //  Z-
+//        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, -0.5f).color(color.getRed(),
+//                                                                 color.getGreen(),
+//                                                                 color.getBlue(),
+//                                                                 color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, -0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, -0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, -0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//
+//        //  Z+
+//        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, 0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, 0.5f).color(color.getRed(),
+//                                                              color.getGreen(),
+//                                                              color.getBlue(),
+//                                                              color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, 0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, 0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//
+//        //  Y+
+//        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, 0.5f).color(color.getRed(),
+//                                                              color.getGreen(),
+//                                                              color.getBlue(),
+//                                                              color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, -0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, -0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, 0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//
+//        //  Y-
+//        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, 0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, -0.5f).color(color.getRed(),
+//                                                                 color.getGreen(),
+//                                                                 color.getBlue(),
+//                                                                 color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, -0.5f).color(color.getRed(),
+//                                                                color.getGreen(),
+//                                                                color.getBlue(),
+//                                                                color.getAlpha()
+//        ).endVertex();
+//        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, 0.5f).color(color.getRed(),
+//                                                               color.getGreen(),
+//                                                               color.getBlue(),
+//                                                               color.getAlpha()
+//        ).endVertex();
+//
+//        tessellator.end();
 
-        //  X+
-        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, -0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, -0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, 0.5f).color(color.getRed(),
-                                                              color.getGreen(),
-                                                              color.getBlue(),
-                                                              color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, 0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-
-        //  X-
-        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, 0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, 0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, -0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, -0.5f).color(color.getRed(),
-                                                                 color.getGreen(),
-                                                                 color.getBlue(),
-                                                                 color.getAlpha()
-        ).endVertex();
-
-        //  Z-
-        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, -0.5f).color(color.getRed(),
-                                                                 color.getGreen(),
-                                                                 color.getBlue(),
-                                                                 color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, -0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, -0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, -0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-
-        //  Z+
-        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, 0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, 0.5f).color(color.getRed(),
-                                                              color.getGreen(),
-                                                              color.getBlue(),
-                                                              color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, 0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, 0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-
-        //  Y+
-        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, 0.5f).color(color.getRed(),
-                                                              color.getGreen(),
-                                                              color.getBlue(),
-                                                              color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, 0.5f, -0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, -0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, 0.5f, 0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-
-        //  Y-
-        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, 0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, -0.5f, -0.5f, -0.5f).color(color.getRed(),
-                                                                 color.getGreen(),
-                                                                 color.getBlue(),
-                                                                 color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, -0.5f).color(color.getRed(),
-                                                                color.getGreen(),
-                                                                color.getBlue(),
-                                                                color.getAlpha()
-        ).endVertex();
-        vertexBuffer.vertex(matrix4f, 0.5f, -0.5f, 0.5f).color(color.getRed(),
-                                                               color.getGreen(),
-                                                               color.getBlue(),
-                                                               color.getAlpha()
-        ).endVertex();
-
-        tessellator.end();
-
-        matrixStack.popPose();
+        ctx.poseStack.popPose();
     }
 
-    public static void renderLine(PoseStack matrixStack, Vec3 lineStartPos, Vec3 lineEndPos) {
+    public static void renderLine(WorldEventContext ctx, Vec3 lineStartPos, Vec3 lineEndPos) {
         if (lineEndPos == null) {
             return;
         }
@@ -386,22 +392,35 @@ public class RenderNode {
         Vec3 direction = lineEndPos.subtract(lineStartPos).normalize();
 
         if (lineStartPos != null) {
+            ctx.poseStack.pushPose();
+            ctx.poseStack.translate(lineStartPos.x(), lineStartPos.y(), lineStartPos.z());
+
+            ctx.poseStack.scale(0.25F, 0.25F, 0.25F);
+
+            final Matrix4f lineMatrix = ctx.poseStack.last().pose();
+
+            final VertexConsumer buffer = ctx.bufferSource.getBuffer(WorldRenderMacros.LINES);
+
+            buffer.vertex(lineMatrix, 0.5f, 0.5f, 0.5f).color(0.75F, 0.75F, 0.75F, 1.0F).endVertex();
+            buffer.vertex(lineMatrix, pdx / 0.25f, pdy / 0.25f, pdz / 0.25f).color(0.75F, 0.75F, 0.75F, 1.0F).endVertex();
+
+            ctx.poseStack.popPose();
             // From CollisionBoxRenderer
-            MultiBufferSource.BufferSource pBufferSource = renderbuffers.bufferSource();
-            VertexConsumer vertexconsumer = pBufferSource.getBuffer(RenderType.lines());
-
-            PoseStack.Pose pose = matrixStack.last();
-            vertexconsumer.vertex(pose.pose(), (float) lineStartPos.x, (float) lineStartPos.y, (float) lineStartPos.z)
-                    .color(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha())
-                    .normal((float) direction.x, (float) direction.y, (float) direction.z)
-                    .endVertex();
-
-            vertexconsumer.vertex(pose.pose(), (float) lineEndPos.x, (float) lineEndPos.y, (float) lineEndPos.z)
-                    .color(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha())
-                    .normal((float) direction.x, (float) direction.y, (float) direction.z)
-                    .endVertex();
-
-            pBufferSource.endBatch(RenderType.lines());
+//            MultiBufferSource.BufferSource pBufferSource = renderbuffers.bufferSource();
+//            VertexConsumer vertexconsumer = pBufferSource.getBuffer(RenderType.lines());
+//
+//            PoseStack.Pose pose = poseStack.last();
+//            vertexconsumer.vertex(pose.pose(), (float) lineStartPos.x, (float) lineStartPos.y, (float) lineStartPos.z)
+//                    .color(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha())
+//                    .normal((float) direction.x, (float) direction.y, (float) direction.z)
+//                    .endVertex();
+//
+//            vertexconsumer.vertex(pose.pose(), (float) lineEndPos.x, (float) lineEndPos.y, (float) lineEndPos.z)
+//                    .color(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha())
+//                    .normal((float) direction.x, (float) direction.y, (float) direction.z)
+//                    .endVertex();
+//
+//            pBufferSource.endBatch(RenderType.lines());
 
             // From LevelRenderer#renderDebug
 //            Tesselator tesselator = Tesselator.getInstance();
@@ -414,8 +433,8 @@ public class RenderNode {
 //            RenderSystem.defaultBlendFunc();
 //            RenderSystem.disableTexture();
 //
-//            matrixStack.pushPose();
-//            matrixStack.translate(lineStartPos.x(), lineStartPos.y(), lineStartPos.z());
+//            poseStack.pushPose();
+//            poseStack.translate(lineStartPos.x(), lineStartPos.y(), lineStartPos.z());
 //
 //            RenderSystem.applyModelViewMatrix();
 //            RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
@@ -434,7 +453,7 @@ public class RenderNode {
 //            tesselator.end();
 //            RenderSystem.lineWidth(1.0F);
 //
-//            matrixStack.popPose();
+//            poseStack.popPose();
 //            RenderSystem.applyModelViewMatrix();
 //
 //            RenderSystem.depthMask(true);
@@ -449,7 +468,7 @@ public class RenderNode {
 
     // From RenderPath#debugDrawNode
 
-    public static void renderString(final PoseStack matrixStack, Vec3 pos, String content) {
+    public static void renderString(final WorldEventContext ctx, Vec3 pos, String content) {
         if (pos == null) {
             return;
         }
@@ -460,13 +479,13 @@ public class RenderNode {
         final Font fontrenderer = Minecraft.getInstance().font;
         final int lineHeight = fontrenderer.lineHeight;
 
-        matrixStack.pushPose();
-        matrixStack.translate(pos.x, pos.y, pos.z);
+        ctx.poseStack.pushPose();
+        ctx.poseStack.translate(pos.x, pos.y, pos.z);
 
         final EntityRenderDispatcher renderManager = Minecraft.getInstance().getEntityRenderDispatcher();
-        matrixStack.mulPose(renderManager.cameraOrientation());
-        matrixStack.scale(-0.014F, -0.014F, 0.014F);
-        matrixStack.translate(0.0F, -lineHeight / 2F, 0.0F);
+        ctx.poseStack.mulPose(renderManager.cameraOrientation());
+        ctx.poseStack.scale(-0.014F, -0.014F, 0.014F);
+        ctx.poseStack.translate(0.0F, -lineHeight / 2F, 0.0F);
 
         RenderSystem.depthMask(false);
 
@@ -481,7 +500,7 @@ public class RenderNode {
 
         final int i = fontrenderer.width(s1) / 2;
 
-        final Matrix4f matrix4f = matrixStack.last().pose();
+        final Matrix4f matrix4f = ctx.poseStack.last().pose();
         final Tesselator tessellator = Tesselator.getInstance();
         final BufferBuilder vertexBuffer = tessellator.getBuilder();
         vertexBuffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
@@ -514,7 +533,7 @@ public class RenderNode {
 //        fontrenderer.renderString(s1, -fontrenderer.getStringWidth(s1) / 2.0f, 0, 0xFFFFFFFF, false, matrix4f, buffer, false, 0, 15728880);
 
         RenderSystem.depthMask(true);
-        matrixStack.translate(0.0F, 1F, 0.0F);
+        ctx.poseStack.translate(0.0F, 1F, 0.0F);
         fontrenderer.drawInBatch(s1,
                                  -fontrenderer.width(s1) / 2.0f,
                                  0,
@@ -529,7 +548,34 @@ public class RenderNode {
 
         buffer.endBatch();
 
-        matrixStack.popPose();
+        ctx.poseStack.popPose();
+    }
+
+
+    private static void debugDrawNode(final Vec3 n, final int argbColor, final WorldEventContext ctx, Vec3 parent) {
+        ctx.poseStack.pushPose();
+        ctx.poseStack.translate(n.x() + 0.375d, n.y() + 0.375d, n.z() + 0.375d);
+
+        final Entity entity = Minecraft.getInstance().getCameraEntity();
+
+        ctx.poseStack.scale(0.25F, 0.25F, 0.25F);
+
+        WorldRenderMacros.renderBox(ctx.bufferSource, ctx.poseStack, BlockPos.ZERO, BlockPos.ZERO, argbColor);
+
+        if (parent != null) {
+            final Matrix4f lineMatrix = ctx.poseStack.last().pose();
+
+            final float pdx = (float) (parent.x() - n.x() + 0.125f);
+            final float pdy = (float) (parent.y() - n.y() + 0.125f);
+            final float pdz = (float) (parent.z() - n.z() + 0.125f);
+
+            final VertexConsumer buffer = ctx.bufferSource.getBuffer(WorldRenderMacros.LINES);
+
+            buffer.vertex(lineMatrix, 0.5f, 0.5f, 0.5f).color(0.75F, 0.75F, 0.75F, 1.0F).endVertex();
+            buffer.vertex(lineMatrix, pdx / 0.25f, pdy / 0.25f, pdz / 0.25f).color(0.75F, 0.75F, 0.75F, 1.0F).endVertex();
+        }
+
+        ctx.poseStack.popPose();
     }
 
 

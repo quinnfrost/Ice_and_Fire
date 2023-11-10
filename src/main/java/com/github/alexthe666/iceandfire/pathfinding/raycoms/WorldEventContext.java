@@ -48,8 +48,8 @@ public class WorldEventContext {
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_MIPPED_BLOCKS_BLOCKS)
         {
+            RenderNode.render(this);
             PathfindingDebugRenderer.render(this);
-            RenderNode.render(this.poseStack);
 
             bufferSource.endBatch();
         }

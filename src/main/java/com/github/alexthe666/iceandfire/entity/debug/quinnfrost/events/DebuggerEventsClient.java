@@ -8,39 +8,102 @@ import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.RayTraceUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlow;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayInfoPanel;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageCommandEntity;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageDebugEntity;
+import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import java.util.Optional;
+
 public class DebuggerEventsClient {
+    public static boolean lastUseKeyDown = false;
+
+    public static Pair<Entity, Float> selectedEntity = null;
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         int maxDistance = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16;
         LocalPlayer clientPlayerEntity = Minecraft.getInstance().player;
 
-        if (!OverlayInfoPanel.bufferInfoLeft.isEmpty() && clientPlayerEntity != null && clientPlayerEntity.isPassenger()) {
-            LivingEntity riding = (LivingEntity) clientPlayerEntity.getVehicle();
-            if (riding != null) {
-                RenderNode.setRenderPos(
-                        2,
-                        clientPlayerEntity.getPosition(1.0f).add(0,
-                                                                 clientPlayerEntity.getEyeHeight(),
-                                                                 0
-                        ).add(riding.getDeltaMovement().scale(2f)),
-                        clientPlayerEntity.getPosition(1.0f),
-                        null
+        if (clientPlayerEntity != null && clientPlayerEntity.getMainHandItem().is(IafItemRegistry.DRAGON_DEBUG_STICK.get())) {
+            if (Minecraft.getInstance().options.keyUse.isDown()) {
+
+                // Do raytrace
+                HitResult result = RayTraceUtils.getTargetBlockOrEntity(clientPlayerEntity,
+                                                                        maxDistance,
+                                                                        entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart
                 );
+                // Key pressed
+                if (!lastUseKeyDown) {
+                    if (result instanceof EntityHitResult entityHitResult) {
+                        selectedEntity = Pair.of(entityHitResult.getEntity(),
+                                                 (float) clientPlayerEntity.getPosition(1.0f).distanceTo(entityHitResult.getLocation())
+                        );
+                        IceAndFire.sendMSGToServer(new MessageCommandEntity(entityHitResult.getEntity()));
+                    }
+                }
+
+                lastUseKeyDown = true;
+            } else {
+                if (selectedEntity != null) {
+                    // Do raytrace
+                    HitResult result = RayTraceUtils.getTargetBlockOrEntity(clientPlayerEntity,
+                                                                            maxDistance,
+                                                                            entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart
+                    );
+                    // Key released
+                    if (lastUseKeyDown) {
+                        if (result instanceof EntityHitResult entityHitResult) {
+                            IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
+                                                                                entityHitResult.getEntity()
+                            ));
+                        } else if (result instanceof BlockHitResult blockHitResult) {
+                            if (blockHitResult.getType() != HitResult.Type.MISS) {
+                                IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
+                                                                                    blockHitResult.getLocation()
+                                ));
+                            } else {
+                                IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
+                                                                                    clientPlayerEntity.getPosition(1.0f).add(
+                                                                                            clientPlayerEntity.getLookAngle().scale(
+                                                                                                    selectedEntity.getSecond()))
+                                ));
+                            }
+                        }
+
+                        selectedEntity = null;
+                    }
+                }
+
+                lastUseKeyDown = false;
             }
         }
+
+//        if (!OverlayInfoPanel.bufferInfoLeft.isEmpty() && clientPlayerEntity != null && clientPlayerEntity.isPassenger()) {
+//            LivingEntity riding = (LivingEntity) clientPlayerEntity.getVehicle();
+//            if (riding != null) {
+//                RenderNode.setRenderPos(
+//                        2,
+//                        clientPlayerEntity.getPosition(1.0f).add(0,
+//                                                                 clientPlayerEntity.getEyeHeight(),
+//                                                                 0
+//                        ).add(riding.getDeltaMovement().scale(2f)),
+//                        clientPlayerEntity.getPosition(1.0f),
+//                        null
+//                );
+//            }
+//        }
 
 //        if (clientPlayerEntity != null && clientPlayerEntity.isShiftKeyDown() && (clientPlayerEntity.getItemInHand(
 //                InteractionHand.MAIN_HAND).getItem() == IafItemRegistry.DRAGON_BOW.get()

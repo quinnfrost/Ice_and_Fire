@@ -10,7 +10,7 @@ public class RenderEvent {
     @SubscribeEvent
     public static void renderWorldLastEvent(RenderLevelStageEvent event) {
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
-            RenderNode.render(event.getPoseStack());
+//            RenderNode.render(event.getPoseStack());
         }
     }
 

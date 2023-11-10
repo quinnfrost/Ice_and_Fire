@@ -497,6 +497,9 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onEntityInteract(final PlayerInteractEvent.EntityInteract event) {
+        if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
+            DebuggerEventsCommon.onEntityInteract(event);
+        }
         // Handle creative dragon meal
         if (event.getItemStack().getItem() == IafItemRegistry.CREATIVE_DRAGON_MEAL.get() && (event.getTarget() instanceof TamableAnimal || event.getTarget() instanceof AbstractHorse)) {
             if (event.getTarget() instanceof TamableAnimal tamableAnimal) {
