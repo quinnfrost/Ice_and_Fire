@@ -2,7 +2,6 @@ package com.github.alexthe666.iceandfire.entity.debug.quinnfrost;
 
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
-import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageClientDisplay;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageClientDraw;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageDebugEntity;
@@ -13,7 +12,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -23,11 +21,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.schedule.Activity;
-import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,7 +86,7 @@ public class DebugUtils {
             );
 
         }
-
+        EntityCommander.removeCommand(player);
         player.displayClientMessage(Component.nullToEmpty("Stopped tracking"), false);
     }
 
@@ -181,14 +175,14 @@ public class DebugUtils {
     }
 
     public static List<String> getEntityNameLong(LivingEntity mob) {
-        return List.of(String.format("%s \"%s\" [%s](%d) (%.1f/%s)",
+        return List.of(String.format("%s \"%s\" [%s](%d) (%.1f/%.1f)",
                                      mob.getName().getString(),
                                      mob.getCustomName() == null ? "-" : mob.getCustomName(),
                                      mob.getEncodeId(),
                                      mob.getId(),
                                      mob.getHealth(),
-                                     Objects.toString((mob.getAttribute(
-                                             Attributes.MAX_HEALTH).getValue()), "-")
+                                     mob.getAttribute(
+                                             Attributes.MAX_HEALTH).getValue()
                        )
         );
     }
@@ -396,62 +390,4 @@ public class DebugUtils {
 
     }
 
-    public static void onLivingAttacked(final LivingAttackEvent event) {
-        if (event.getEntity() instanceof PathfinderMob mob && DebugUtils.isTracking(mob)) {
-            float xoffset = event.getSource() == DamageSource.GENERIC ? -40 : -20;
-            DebugUtils.getTrackingPlayer(mob).ifPresent(
-                    player -> {
-                        IceAndFire.sendMSGToPlayer(new MessageClientDisplay(
-                                                           new Vec2(xoffset, 40f),
-                                                           20,
-                                                           List.of(String.format("%.1f", event.getAmount()))
-                                                   ),
-                                                   (ServerPlayer) player
-                        );
-                    }
-            );
-        } else if (event.getSource().getEntity() instanceof LivingEntity sourceEntity && DebugUtils.isTracking(sourceEntity)) {
-            DebugUtils.getTrackingPlayer(sourceEntity).ifPresent(
-                    player -> {
-                        IceAndFire.sendMSGToPlayer(new MessageClientDisplay(
-                                                           new Vec2(20f, 40f),
-                                                           20,
-                                                           List.of(String.format("%.1f", event.getAmount()))
-                                                   ),
-                                                   (ServerPlayer) player
-                        );
-                    }
-            );
-
-        }
-    }
-
-    public static void onEntityDamage(LivingDamageEvent event) {
-        if (event.getEntity() instanceof PathfinderMob mob && DebugUtils.isTracking(mob)) {
-            DebugUtils.getTrackingPlayer(mob).ifPresent(
-                    player -> {
-                        IceAndFire.sendMSGToPlayer(new MessageClientDisplay(
-                                                           new Vec2(-20f, 30f),
-                                                           20,
-                                                           List.of(String.format("%.1f", event.getAmount()))
-                                                   ),
-                                                   (ServerPlayer) player
-                        );
-                    }
-            );
-        } else if (event.getSource().getEntity() instanceof LivingEntity sourceEntity && DebugUtils.isTracking(sourceEntity)) {
-            DebugUtils.getTrackingPlayer(sourceEntity).ifPresent(
-                    player -> {
-                        IceAndFire.sendMSGToPlayer(new MessageClientDisplay(
-                                                           new Vec2(20f, 30f),
-                                                           20,
-                                                           List.of(String.format("%.1f", event.getAmount()))
-                                                   ),
-                                                   (ServerPlayer) player
-                        );
-                    }
-            );
-
-        }
-    }
 }

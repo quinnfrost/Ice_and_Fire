@@ -18,6 +18,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -69,6 +70,11 @@ public class DebuggerEventsClient {
                                                                                 entityHitResult.getEntity()
                             ));
                         } else if (result instanceof BlockHitResult blockHitResult) {
+                            blockHitResult = RayTraceUtils.getTargetBlock(clientPlayerEntity,
+                                                                          selectedEntity.getSecond(),
+                                                                          1.0f,
+                                                                          ClipContext.Block.VISUAL
+                            );
                             if (blockHitResult.getType() != HitResult.Type.MISS) {
                                 IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
                                                                                     blockHitResult.getLocation()

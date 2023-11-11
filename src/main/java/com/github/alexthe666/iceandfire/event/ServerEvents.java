@@ -7,7 +7,6 @@ import com.github.alexthe666.iceandfire.entity.*;
 import com.github.alexthe666.iceandfire.entity.ai.AiDebug;
 import com.github.alexthe666.iceandfire.entity.ai.EntitySheepAIFollowCyclops;
 import com.github.alexthe666.iceandfire.entity.ai.VillagerAIFearUntamed;
-import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsCommon;
 import com.github.alexthe666.iceandfire.entity.props.*;
@@ -301,7 +300,7 @@ public class ServerEvents {
     @SubscribeEvent
     public void onLivingAttacked(final LivingAttackEvent event) {
         if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
-            DebugUtils.onLivingAttacked(event);
+            DebuggerEventsCommon.onLivingAttacked(event);
         }
         if (event.getSource() != null && event.getSource().getEntity() != null) {
             final Entity attacker = event.getSource().getEntity();
