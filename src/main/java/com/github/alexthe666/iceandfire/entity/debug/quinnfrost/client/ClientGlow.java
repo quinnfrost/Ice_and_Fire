@@ -26,7 +26,7 @@ public class ClientGlow {
             world = entity.level();
             glowList.put(entity.getId(), timeInTick);
             entity.setSharedFlag(6, true);
-//            entity.setGlowingTag(true);
+            entity.setGlowingTag(true);
         }
     }
 
@@ -38,7 +38,7 @@ public class ClientGlow {
                     return time - 1;
                 } else if (world.getEntity(entityID) != null) {
                     world.getEntity(entityID).setSharedFlag(6, false);
-//                    world.getEntity(entityID).setGlowingTag(false);
+                    world.getEntity(entityID).setGlowingTag(false);
                 }
                 return 0;
             });

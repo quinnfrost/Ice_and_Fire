@@ -325,7 +325,7 @@ public class ServerEvents {
     @SubscribeEvent
     public void onLivingAttacked(final LivingAttackEvent event) {
         if (ExtendedEntityDebugger.EXTENDED_DEBUG) {
-            DebugUtils.onLivingAttacked(event);
+            DebuggerEventsCommon.onLivingAttacked(event);
         }
         if (event.getSource() != null && event.getSource().getEntity() != null) {
             Entity attacker = event.getSource().getEntity();
