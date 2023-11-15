@@ -213,8 +213,18 @@ public class DebugUtils {
                                                   mobEntity.getDeltaMovement().y,
                                                   mobEntity.getDeltaMovement().z,
                                                   getSpeed(mobEntity)
-                       ),
-                       "Facing: " + String.format("%s", formatVector(mobEntity.getLookAngle()))
+                       )
+
+        );
+    }
+
+    public static List<String> getRotationInfo(PathfinderMob mob, Player player) {
+        return List.of(
+                "Facing: " + String.format("%s", formatVector(mob.getLookAngle())),
+                String.format("Rot: %.2f(%.2f), %.2f(%.2f) ", mob.getXRot(), mob.xRotO, mob.getYRot(), mob.yRotO)
+                        + String.format("(%s)", mob.getDirection()),
+                String.format("yBodyRot: %.2f(%.2f) ", mob.yBodyRot, mob.yBodyRotO) + String.format("yHeadRot: %.2f(%.2f)", mob.yHeadRot, mob.yHeadRotO)
+
         );
     }
 
@@ -351,6 +361,7 @@ public class DebugUtils {
 
         list.addAll(getEntityNameLong(mobEntity));
         list.addAll(getPositionInfo(mobEntity, player));
+        list.addAll(getRotationInfo(mobEntity, player));
         list.addAll(getTravelInfo(mobEntity, player));
         list.addAll(getGoalInfo(mobEntity, player));
         list.addAll(getTaskInfo(mobEntity, player));
