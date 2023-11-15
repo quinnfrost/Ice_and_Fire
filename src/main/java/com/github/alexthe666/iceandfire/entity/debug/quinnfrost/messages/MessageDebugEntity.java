@@ -6,7 +6,6 @@ import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlo
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayInfoPanel;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
-import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.PathfinderMob;
@@ -91,7 +90,7 @@ public class MessageDebugEntity {
 
             if (contextSupplier.get().getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
                 if (isActive) {
-                    Entity entity = Minecraft.getInstance().level.getEntity(entityId);
+                    Entity entity = IceAndFire.PROXY.getClientSidePlayer().level.getEntity(entityId);
                     if (!(entity instanceof PathfinderMob)) {
                         return;
                     }
@@ -107,7 +106,7 @@ public class MessageDebugEntity {
 
                         OverlayInfoPanel.bufferInfoLeft = serverEntityInfo;
                         OverlayInfoPanel.bufferInfoRight = DebugUtils.getTargetInfoString(targetEntity,
-                                                                                          Minecraft.getInstance().player
+                                                                                          IceAndFire.PROXY.getClientSidePlayer()
                         );
                     } else {
                         ClientGlow.setGlowing(targetEntity, 10);
