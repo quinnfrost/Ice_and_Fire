@@ -192,7 +192,7 @@ public class DebugUtils {
     }
 
     public static List<String> getEntityNameLong(LivingEntity mob) {
-        return List.of(String.format("%s \"%s\" [%s](%d) (%.1f/%.1f)",
+        return List.of(String.format("%s \"%s\" [%s]/%d (%.1f/%.1f)",
                                      mob.getName().getString(),
                                      mob.getCustomName() == null ? "-" : mob.getCustomName(),
                                      mob.getEncodeId(),

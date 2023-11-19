@@ -133,7 +133,7 @@ public class PathJobRandomPos extends AbstractPathJob
     @Override
     protected Path search()
     {
-        if (Pathfinding.isDebug())
+        if (Pathfinding.isDebug() && LOG_PATHFIND)
         {
             IceAndFire.LOGGER.info(String.format("Pathfinding from [%d,%d,%d] in the direction of [%d,%d,%d]",
               start.getX(), start.getY(), start.getZ(), destination.getX(), destination.getY(), destination.getZ()));
