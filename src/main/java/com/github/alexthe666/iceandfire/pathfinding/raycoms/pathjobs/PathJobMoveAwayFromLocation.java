@@ -61,7 +61,7 @@ public class PathJobMoveAwayFromLocation extends AbstractPathJob
     @Override
     protected Path search()
     {
-        if (Pathfinding.isDebug())
+        if (Pathfinding.isDebug() && LOG_PATHFIND)
         {
             IceAndFire.LOGGER.info(String.format("Pathfinding from [%d,%d,%d] away from [%d,%d,%d]",
               start.getX(), start.getY(), start.getZ(), avoid.getX(), avoid.getY(), avoid.getZ()));
