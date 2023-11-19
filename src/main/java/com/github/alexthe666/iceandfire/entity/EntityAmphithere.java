@@ -295,6 +295,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
     public void positionRider(@NotNull Entity passenger) {
         super.positionRider(passenger);
         if (this.hasPassenger(passenger) && this.isTame()) {
+            // TODO: remove, or add a 360 check
 //            this.setYBodyRot(passenger.getYRot());
 //            this.setYHeadRot(passenger.getYHeadRot());
         }
@@ -949,26 +950,18 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
     public boolean allowMousePitchControl = true;
     protected boolean gliding = false;
     protected float glidingSpeedBonus = 0;
-    public double minimumSpeed = .15f;
-    public double maximumSpeed = .4f;
+    public double minimumSpeed = .2f;
+    public double maximumSpeed = .6f;
     @Override
     public void travel(@NotNull Vec3 pTravelVector) {
-        // TODO: ??
-//        if (!this.canMove() && !this.isVehicle()) {
-//            super.travel(pTravelVector.multiply(0, 1, 0));
-//            return;
-//        }
+        if (!this.canMove() && !this.isVehicle()) {
+            super.travel(pTravelVector.multiply(0, 1, 0));
+            return;
+        }
 
-        // Amphithere riding behavior:
-        //  1. In air flight forward
-        //  2. Flies like elytra (as book described)
-        //  3. Fastest (as book described)
-        //  4. Has roll, but no pitch (TODO: maybe it needs one)
-        // How original amphithere flies:
-        //  - fliesLikeElytra() -> true
-        //  - DragonAIRide#61, x,y will always advance
-        //  - Mouse controlled roll and pitch, except pitch is only used in DragonAIRide
-        // TODO: roll error when turning
+        // TODO: add pitch animation
+        // TODO: how to use fliesLikeElytra flag
+        // TODO: match original speed
 
         // Player riding controls
         // Note: when motion is handled by the client no server side setDeltaMovement() should be called
@@ -997,6 +990,8 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             this.setXRot(rider.getXRot() * 0.5F);
             this.setRot(this.getYRot(), this.getXRot());
             this.yBodyRot = this.getYRot();
+
+            this.yHeadRotO = this.yHeadRot;
             this.yHeadRot = this.yBodyRot;
 
             // Flying control, include flying through waterfalls
