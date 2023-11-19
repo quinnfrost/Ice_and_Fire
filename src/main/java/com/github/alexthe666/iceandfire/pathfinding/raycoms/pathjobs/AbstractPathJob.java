@@ -45,6 +45,7 @@ import static com.github.alexthe666.iceandfire.pathfinding.raycoms.SurfaceType.i
  * Abstract class for Jobs that run in the multithreaded path finder.
  */
 public abstract class AbstractPathJob implements Callable<Path> {
+    public static final boolean LOG_PATHFIND = false;
     /**
      * Which citizens are being tracked by which players.
      */
@@ -608,7 +609,7 @@ public abstract class AbstractPathJob implements Callable<Path> {
             addNodeToDebug(currentNode);
         }
 
-        if (Pathfinding.isDebug()) {
+        if (Pathfinding.isDebug() && LOG_PATHFIND) {
             IceAndFire.LOGGER.info(String.format("Examining MNode [%d,%d,%d] ; g=%f ; f=%f",
                 currentNode.pos.getX(), currentNode.pos.getY(), currentNode.pos.getZ(), currentNode.getCost(), currentNode.getScore()));
         }
@@ -826,7 +827,7 @@ public abstract class AbstractPathJob implements Callable<Path> {
      * @param points the points to print.
      */
     private void doDebugPrinting(final Node[] points) {
-        if (Pathfinding.isDebug()) {
+        if (Pathfinding.isDebug() && LOG_PATHFIND) {
             IceAndFire.LOGGER.info("Path found:");
 
             for (final Node p : points) {
