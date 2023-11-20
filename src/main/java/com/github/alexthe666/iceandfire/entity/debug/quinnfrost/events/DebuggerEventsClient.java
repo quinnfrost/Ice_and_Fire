@@ -7,6 +7,7 @@ import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.RayTraceUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlow;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayCrossHair;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayInfoPanel;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageCommandEntity;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageDebugEntity;
@@ -14,6 +15,7 @@ import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -22,9 +24,12 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec2;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import java.awt.*;
+import java.util.List;
 import java.util.Optional;
 
 public class DebuggerEventsClient {
@@ -45,6 +50,7 @@ public class DebuggerEventsClient {
                                                                         maxDistance,
                                                                         entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart
                 );
+
                 // Key pressed
                 if (!lastUseKeyDown) {
                     if (result instanceof EntityHitResult entityHitResult) {
@@ -150,12 +156,33 @@ public class DebuggerEventsClient {
     }
 
     public static void scanDebugKeyPress(Player player) {
+        int maxDistance = Minecraft.getInstance().options.renderDistance * 16;
+        if (IafKeybindRegistry.extended_debug.isDown()) {
+            // Do raytrace
+            HitResult result = RayTraceUtils.getTargetBlockOrEntity(player,
+                                                                    maxDistance,
+                                                                    entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart
+            );
+            if (result.getType() != HitResult.Type.MISS) {
+                final Font fontrenderer = Minecraft.getInstance().font;
+                String distanceStr = String.format("%.1f",
+                                                   result.getLocation().distanceTo(player.getEyePosition(
+                                                           1.0f))
+                );
+                OverlayCrossHair.setCrossHairString(new Vec2(0 - fontrenderer.width(distanceStr) * .5f, 20),
+                                                    distanceStr,
+                                                    2,
+                                                    true
+                );
+            }
+        }
         if (IafKeybindRegistry.extended_debug.consumeClick()) {
             // Do raytrace
             HitResult result = RayTraceUtils.getTargetBlockOrEntity(player,
-                                                                    256,
+                                                                    maxDistance,
                                                                     entity -> entity instanceof LivingEntity || entity instanceof EntityMutlipartPart
             );
+
             if (result instanceof EntityHitResult) {
                 // Select debug entity
                 Entity entity = ((EntityHitResult) result).getEntity();
