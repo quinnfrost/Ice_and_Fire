@@ -45,7 +45,9 @@ public class DebugUtils {
     }
 
     public static boolean isTracking(Player player, Entity entity) {
-        return getTrackingMap().getOrDefault(player, UUID.randomUUID()).equals(getDebuggableTarget(entity).map(mob -> mob.getUUID()).orElse(UUID.randomUUID()));
+        return getTrackingMap().getOrDefault(player,
+                                             UUID.randomUUID()
+        ).equals(getDebuggableTarget(entity).map(mob -> mob.getUUID()).orElse(UUID.randomUUID()));
     }
 
     public static boolean isTracking(Player player) {
@@ -135,10 +137,10 @@ public class DebugUtils {
             return "-, -, -";
         }
     }
-    
+
     public static String formatAttribute(LivingEntity entity, Attribute attribute) {
         return Optional.ofNullable(entity.getAttribute(attribute)).map(attributeInstance -> {
-            return String.format("%.2f", attributeInstance.getValue());
+            return String.format("%.1f", attributeInstance.getValue());
         }).orElse("-");
     }
 
@@ -183,14 +185,15 @@ public class DebugUtils {
     }
 
     public static List<String> getEntityNameLong(LivingEntity mob) {
-        return List.of(String.format("%s \"%s\" [%s]/%d (%.1f/%.1f)",
+        return List.of(String.format("%s \"%s\" [%s]/%d (%.1f/%s)/%s+%s",
                                      mob.getName().getString(),
                                      mob.getCustomName() == null ? "-" : mob.getCustomName(),
                                      mob.getEncodeId(),
                                      mob.getId(),
                                      mob.getHealth(),
-                                     mob.getAttribute(
-                                             Attributes.MAX_HEALTH).getValue()
+                                     formatAttribute(mob, Attributes.MAX_HEALTH),
+                                     formatAttribute(mob, Attributes.ARMOR),
+                                     formatAttribute(mob, Attributes.ARMOR_TOUGHNESS)
                        )
         );
     }
@@ -222,7 +225,11 @@ public class DebugUtils {
                 "Facing: " + String.format("%s", formatVector(mob.getLookAngle())),
                 String.format("Rot: %.2f(%.2f), %.2f(%.2f) ", mob.getXRot(), mob.xRotO, mob.getYRot(), mob.yRotO)
                         + String.format("(%s)", mob.getDirection()),
-                String.format("yBodyRot: %.2f(%.2f) ", mob.yBodyRot, mob.yBodyRotO) + String.format("yHeadRot: %.2f(%.2f)", mob.yHeadRot, mob.yHeadRotO)
+                String.format("yBodyRot: %.2f(%.2f) ", mob.yBodyRot, mob.yBodyRotO) + String.format(
+                        "yHeadRot: %.2f(%.2f)",
+                        mob.yHeadRot,
+                        mob.yHeadRotO
+                )
 
         );
     }
