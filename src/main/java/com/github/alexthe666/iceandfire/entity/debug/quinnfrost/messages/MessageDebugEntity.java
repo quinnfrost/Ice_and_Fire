@@ -90,7 +90,7 @@ public class MessageDebugEntity {
 
             if (contextSupplier.get().getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
                 if (isActive) {
-                    Entity entity = IceAndFire.PROXY.getClientSidePlayer().level.getEntity(entityId);
+                    Entity entity = IceAndFire.PROXY.getClientSidePlayer().level().getEntity(entityId);
                     if (!(entity instanceof PathfinderMob)) {
                         return;
                     }

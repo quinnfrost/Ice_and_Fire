@@ -3,6 +3,7 @@ package com.github.alexthe666.iceandfire.item;
 
 import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
 import com.github.alexthe666.iceandfire.entity.IafEntityRegistry;
+import com.google.common.base.Predicate;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -28,6 +29,12 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public class ItemDragonHorn extends Item {
+    public static final boolean ALLOW_ANY_LIVING_ENTITY = true;
+    public Predicate<Entity> hornShelterable = entity -> {
+        return ALLOW_ANY_LIVING_ENTITY &&
+                entity instanceof LivingEntity
+                ;
+    };
 
     public ItemDragonHorn() {
         super((new Item.Properties())/*.tab(IceAndFire.TAB_ITEMS)*/.stacksTo(1));
@@ -62,7 +69,10 @@ public class ItemDragonHorn extends Item {
     @Override
     public @NotNull InteractionResult interactLivingEntity(@NotNull ItemStack stack, Player playerIn, @NotNull LivingEntity target, @NotNull InteractionHand hand) {
         ItemStack trueStack = playerIn.getItemInHand(hand);
-        if (!playerIn.level().isClientSide && hand == InteractionHand.MAIN_HAND && target instanceof EntityDragonBase && ((EntityDragonBase) target).isOwnedBy(playerIn) && (trueStack.getTag() == null || (trueStack.getTag() != null && trueStack.getTag().getCompound("EntityTag").isEmpty()))) {
+        if (!playerIn.level().isClientSide && hand == InteractionHand.MAIN_HAND
+                && ((target instanceof EntityDragonBase && ((EntityDragonBase) target).isOwnedBy(playerIn)) || hornShelterable.apply(target))
+                && (trueStack.getTag() == null || (trueStack.getTag() != null && trueStack.getTag().getCompound(
+                "EntityTag").isEmpty()))) {
             CompoundTag newTag = new CompoundTag();
 
             CompoundTag entityTag = new CompoundTag();
@@ -73,7 +83,13 @@ public class ItemDragonHorn extends Item {
             trueStack.setTag(newTag);
 
             playerIn.swing(hand);
-            playerIn.level().playSound(playerIn, playerIn.blockPosition(), SoundEvents.ZOMBIE_VILLAGER_CONVERTED, SoundSource.NEUTRAL, 3.0F, 0.75F);
+            playerIn.level().playSound(playerIn,
+                                     playerIn.blockPosition(),
+                                     SoundEvents.ZOMBIE_VILLAGER_CONVERTED,
+                                     SoundSource.NEUTRAL,
+                                     3.0F,
+                                     0.75F
+            );
             target.remove(Entity.RemovalReason.DISCARDED);
             return InteractionResult.SUCCESS;
         }
@@ -96,12 +112,21 @@ public class ItemDragonHorn extends Item {
                 if (entity instanceof EntityDragonBase) {
                     EntityDragonBase dragon = (EntityDragonBase) entity;
                     dragon.load(stack.getTag().getCompound("EntityTag"));
+                } else if (hornShelterable.apply(entity)) {
+                    entity.load(stack.getTag().getCompound("EntityTag"));
+                } else {
+                    return InteractionResult.FAIL;
                 }
                 //Still needed to allow for intercompatibility
                 if (stack.getTag().contains("EntityUUID"))
                     entity.setUUID(stack.getTag().getUUID("EntityUUID"));
 
-                entity.absMoveTo(context.getClickedPos().getX() + 0.5D, (context.getClickedPos().getY() + 1), context.getClickedPos().getZ() + 0.5D, 180 + (context.getHorizontalDirection()).toYRot(), 0.0F);
+                entity.absMoveTo(context.getClickedPos().getX() + 0.5D,
+                                 (context.getClickedPos().getY() + 1),
+                                 context.getClickedPos().getZ() + 0.5D,
+                                 180 + (context.getHorizontalDirection()).toYRot(),
+                                 0.0F
+                );
                 if (world.addFreshEntity(entity)) {
                     CompoundTag tag = stack.getTag();
                     tag.remove("DragonHornEntityID");
@@ -122,7 +147,8 @@ public class ItemDragonHorn extends Item {
                 String id = stack.getTag().getString("DragonHornEntityID");
                 if (EntityType.byString(id).isPresent()) {
                     EntityType type = EntityType.byString(id).get();
-                    tooltip.add((Component.translatable(type.getDescriptionId())).withStyle(getTextColorForEntityType(type)));
+                    tooltip.add((Component.translatable(type.getDescriptionId())).withStyle(getTextColorForEntityType(
+                            type)));
                     String name = (Component.translatable("dragon.unnamed")).getString();
                     if (!entityTag.getString("CustomName").isEmpty()) {
                         MutableComponent component = Component.Serializer.fromJson(entityTag.getString("CustomName"));
@@ -130,24 +156,29 @@ public class ItemDragonHorn extends Item {
                             name = component.getString();
                     }
 
-                    tooltip.add((Component.literal(name)).withStyle(ChatFormatting.GRAY));
-                    String gender = (Component.translatable("dragon.gender")).getString() + " " + (Component.translatable(entityTag.getBoolean("Gender") ? "dragon.gender.male" : "dragon.gender.female")).getString();
-                    tooltip.add((Component.literal(gender)).withStyle(ChatFormatting.GRAY));
-                    int stagenumber = entityTag.getInt("AgeTicks") / 24000;
-                    int stage1 = 0;
-                    if (stagenumber >= 100) {
-                        stage1 = 5;
-                    } else if (stagenumber >= 75) {
-                        stage1 = 4;
-                    } else if (stagenumber >= 50) {
-                        stage1 = 3;
-                    } else if (stagenumber >= 25) {
-                        stage1 = 2;
-                    } else {
-                        stage1 = 1;
+                    if (getDragonType(stack) != 0) {
+                        tooltip.add((Component.literal(name)).withStyle(ChatFormatting.GRAY));
+                        String gender = (Component.translatable("dragon.gender")).getString() + " " + (Component.translatable(
+                                entityTag.getBoolean("Gender") ? "dragon.gender.male" : "dragon.gender.female")).getString();
+                        tooltip.add((Component.literal(gender)).withStyle(ChatFormatting.GRAY));
+                        int stagenumber = entityTag.getInt("AgeTicks") / 24000;
+                        int stage1 = 0;
+                        if (stagenumber >= 100) {
+                            stage1 = 5;
+                        } else if (stagenumber >= 75) {
+                            stage1 = 4;
+                        } else if (stagenumber >= 50) {
+                            stage1 = 3;
+                        } else if (stagenumber >= 25) {
+                            stage1 = 2;
+                        } else {
+                            stage1 = 1;
+                        }
+                        String stage = (Component.translatable("dragon.stage")).getString() + " " + stage1 + " " + (Component.translatable(
+                                "dragon.days.front")).getString() + stagenumber + " " + (Component.translatable(
+                                "dragon.days.back")).getString();
+                        tooltip.add((Component.literal(stage)).withStyle(ChatFormatting.GRAY));
                     }
-                    String stage = (Component.translatable("dragon.stage")).getString() + " " + stage1 + " " + (Component.translatable("dragon.days.front")).getString() + stagenumber + " " + (Component.translatable("dragon.days.back")).getString();
-                    tooltip.add((Component.literal(stage)).withStyle(ChatFormatting.GRAY));
                 }
             }
 

@@ -156,7 +156,7 @@ public class DebuggerEventsClient {
     }
 
     public static void scanDebugKeyPress(Player player) {
-        int maxDistance = Minecraft.getInstance().options.renderDistance * 16;
+        int maxDistance = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16;
         if (IafKeybindRegistry.extended_debug.isDown()) {
             // Do raytrace
             HitResult result = RayTraceUtils.getTargetBlockOrEntity(player,
