@@ -144,7 +144,7 @@ public class OverlayInfoPanel {
         final int yOffsetLeft = 5;
         final int xOffsetRight = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         final int yOffsetRight = 5;
-        final int maxLineLength = 50;
+        final int maxLineLength = 70;
 
         Font fontRenderer = Minecraft.getInstance().font;
         int lineHeight = 10;
