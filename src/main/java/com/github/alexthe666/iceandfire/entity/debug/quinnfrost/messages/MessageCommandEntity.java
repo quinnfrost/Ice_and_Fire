@@ -5,7 +5,6 @@ import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.EntityCommand;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.EntityCommander;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlow;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -76,7 +75,7 @@ public class MessageCommandEntity {
             contextSupplier.get().setPacketHandled(true);
 
             if (contextSupplier.get().getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
-                Player player = Minecraft.getInstance().player;
+                Player player = IceAndFire.PROXY.getClientSidePlayer();
 //                if (commandType == CommandType.SIGNAL) {
                 ClientGlow.setGlowing(player.level.getEntity(commandEntityId), 10);
 //                }

@@ -17,6 +17,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.Brain;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.player.Player;
@@ -43,7 +45,9 @@ public class DebugUtils {
     }
 
     public static boolean isTracking(Player player, Entity entity) {
-        return getTrackingMap().getOrDefault(player, UUID.randomUUID()).equals(getDebuggableTarget(entity).map(mob -> mob.getUUID()).orElse(UUID.randomUUID()));
+        return getTrackingMap().getOrDefault(player,
+                                             UUID.randomUUID()
+        ).equals(getDebuggableTarget(entity).map(mob -> mob.getUUID()).orElse(UUID.randomUUID()));
     }
 
     public static boolean isTracking(Player player) {
@@ -134,6 +138,12 @@ public class DebugUtils {
         }
     }
 
+    public static String formatAttribute(LivingEntity entity, Attribute attribute) {
+        return Optional.ofNullable(entity.getAttribute(attribute)).map(attributeInstance -> {
+            return String.format("%.1f", attributeInstance.getValue());
+        }).orElse("-");
+    }
+
     public static double getSpeed(Mob mob) {
 //        double dX = mob.getX() - mob.xOld;
 //        double dY = mob.getY() - mob.yOld;
@@ -175,14 +185,15 @@ public class DebugUtils {
     }
 
     public static List<String> getEntityNameLong(LivingEntity mob) {
-        return List.of(String.format("%s \"%s\" [%s](%d) (%.1f/%.1f)",
+        return List.of(String.format("%s \"%s\" [%s]/%d (%.1f/%s)/%s+%s",
                                      mob.getName().getString(),
                                      mob.getCustomName() == null ? "-" : mob.getCustomName(),
                                      mob.getEncodeId(),
                                      mob.getId(),
                                      mob.getHealth(),
-                                     mob.getAttribute(
-                                             Attributes.MAX_HEALTH).getValue()
+                                     formatAttribute(mob, Attributes.MAX_HEALTH),
+                                     formatAttribute(mob, Attributes.ARMOR),
+                                     formatAttribute(mob, Attributes.ARMOR_TOUGHNESS)
                        )
         );
     }
@@ -204,8 +215,22 @@ public class DebugUtils {
                                                   mobEntity.getDeltaMovement().y,
                                                   mobEntity.getDeltaMovement().z,
                                                   getSpeed(mobEntity)
-                       ),
-                       "Facing: " + String.format("%s", formatVector(mobEntity.getLookAngle()))
+                       )
+
+        );
+    }
+
+    public static List<String> getRotationInfo(PathfinderMob mob, Player player) {
+        return List.of(
+                "Facing: " + String.format("%s", formatVector(mob.getLookAngle())),
+                String.format("Rot: %.2f(%.2f), %.2f(%.2f) ", mob.getXRot(), mob.xRotO, mob.getYRot(), mob.yRotO)
+                        + String.format("(%s)", mob.getDirection()),
+                String.format("yBodyRot: %.2f(%.2f) ", mob.yBodyRot, mob.yBodyRotO) + String.format(
+                        "yHeadRot: %.2f(%.2f)",
+                        mob.yHeadRot,
+                        mob.yHeadRotO
+                )
+
         );
     }
 
@@ -214,6 +239,18 @@ public class DebugUtils {
                 String.format("AISpeed:%.2f, AirSpeed:%.2f", mob.getSpeed(), mob.flyingSpeed),
                 String.format("Strafing:%f - Vertical:%f - Forward:%f", mob.xxa, mob.yya, mob.zza),
                 String.format("XRot:%.2f, YRot:%.2f", mob.getXRot(), mob.getYRot())
+        );
+    }
+
+    public static List<String> getAttributeInfo(PathfinderMob mob, Player player) {
+        return List.of(
+//                String.format("Armor: %.2f", formatAttribute(mob, Attributes.ARMOR)),
+//                String.format("FollowRange: %.2f", formatAttribute(mob, Attributes.FOLLOW_RANGE)),
+//                String.format("AttackDamage: %.2f", formatAttribute(mob, Attributes.ATTACK_DAMAGE)),
+//                String.format("AttackSpeed: %.2f", formatAttribute(mob, Attributes.ATTACK_SPEED)),
+//                String.format("KnockbackResistance: %.2f", formatAttribute(mob, Attributes.KNOCKBACK_RESISTANCE)),
+//                String.format("FlyingSpeed: %s", formatAttribute(mob, Attributes.FLYING_SPEED)),
+                String.format("MovementSpeed: %s", formatAttribute(mob, Attributes.MOVEMENT_SPEED))
         );
     }
 
@@ -312,6 +349,20 @@ public class DebugUtils {
         );
     }
 
+    public static List<String> getEntityInfoShort(PathfinderMob mob, Player player) {
+        return List.of(
+                String.format("%s \"%s\" [%s](%d) (%.1f/%.1f)",
+                              mob.getName().getString(),
+                              mob.getCustomName() == null ? "-" : mob.getCustomName(),
+                              mob.getEncodeId(),
+                              mob.getId(),
+                              mob.getHealth(),
+                              mob.getAttribute(
+                                      Attributes.MAX_HEALTH).getValue()
+                )
+        );
+    }
+
     public static List<String> getRiderInfo(PathfinderMob mob, Player player) {
         return new ArrayList<>();
     }
@@ -342,10 +393,11 @@ public class DebugUtils {
 
         list.addAll(getEntityNameLong(mobEntity));
         list.addAll(getPositionInfo(mobEntity, player));
+        list.addAll(getRotationInfo(mobEntity, player));
         list.addAll(getTravelInfo(mobEntity, player));
         list.addAll(getGoalInfo(mobEntity, player));
         list.addAll(getTaskInfo(mobEntity, player));
-        list.addAll(getMemoryInfo(mobEntity, player));
+        list.addAll(getAttributeInfo(mobEntity, player));
         list.addAll(getAttackTargetInfo(mobEntity, player));
         list.addAll(getDestinationInfo(mobEntity, player));
         list.addAll(getFlags(mobEntity, player));
