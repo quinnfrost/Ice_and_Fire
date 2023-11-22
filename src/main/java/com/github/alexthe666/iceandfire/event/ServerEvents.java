@@ -532,20 +532,30 @@ public class ServerEvents {
         }
 
         // Handle debug path render
-        if (!event.getLevel().isClientSide() && event.getTarget() instanceof Mob && event.getItemStack().getItem() == Items.STICK) {
-            if (AiDebug.isEnabled())
-                AiDebug.addEntity((Mob) event.getTarget());
-            if (Pathfinding.isDebug()) {
-                if (AbstractPathJob.trackingMap.getOrDefault(event.getEntity(),
-                                                             UUID.randomUUID()
-                ).equals(event.getTarget().getUUID())) {
-                    AbstractPathJob.trackingMap.remove(event.getEntity());
-                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()),
-                                               (ServerPlayer) event.getEntity()
-                    );
-                } else {
-                    AbstractPathJob.trackingMap.put(event.getEntity(), event.getTarget().getUUID());
-                }
+//        if (!event.getWorld().isClientSide() && event.getTarget() instanceof Mob && event.getItemStack().getItem() == Items.STICK) {
+//            if (AiDebug.isEnabled())
+//                AiDebug.addEntity((Mob) event.getTarget());
+//            if (Pathfinding.isDebug()) {
+//                if (AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(),
+//                                                             UUID.randomUUID()
+//                ).equals(event.getTarget().getUUID())) {
+//                    AbstractPathJob.trackingMap.remove(event.getPlayer());
+//                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()),
+//                                               (ServerPlayer) event.getPlayer()
+//                    );
+//                } else {
+//                    AbstractPathJob.trackingMap.put(event.getPlayer(), event.getTarget().getUUID());
+//                }
+//            }
+//        }
+    }
+
+    @SubscribeEvent
+    public void onProjectileImpact(ProjectileImpactEvent event) {
+        if (event.getRayTraceResult() != null && event.getRayTraceResult() instanceof EntityHitResult) {
+            EntityHitResult entityResult = (EntityHitResult) event.getRayTraceResult();
+            if (entityResult.getEntity() != null && entityResult.getEntity() instanceof EntityGhost) {
+                event.setCanceled(true);
             }
         }
     }
