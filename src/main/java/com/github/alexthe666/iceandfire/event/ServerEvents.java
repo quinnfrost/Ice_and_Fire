@@ -10,10 +10,7 @@ import com.github.alexthe666.iceandfire.entity.ai.VillagerAIFearUntamed;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.ExtendedEntityDebugger;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.events.DebuggerEventsCommon;
 import com.github.alexthe666.iceandfire.entity.props.*;
-import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
-import com.github.alexthe666.iceandfire.entity.util.IAnimalFear;
-import com.github.alexthe666.iceandfire.entity.util.IHearsSiren;
-import com.github.alexthe666.iceandfire.entity.util.IVillagerFear;
+import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.item.*;
 import com.github.alexthe666.iceandfire.message.MessagePlayerHitMultipart;
 import com.github.alexthe666.iceandfire.message.MessageSwingArm;
@@ -26,6 +23,7 @@ import com.github.alexthe666.iceandfire.world.gen.WorldGenFireDragonCave;
 import com.github.alexthe666.iceandfire.world.gen.WorldGenIceDragonCave;
 import com.github.alexthe666.iceandfire.world.gen.WorldGenLightningDragonCave;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,6 +32,8 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.CombatEntry;
 import net.minecraft.world.damagesource.CombatTracker;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.animal.Animal;
@@ -44,8 +44,11 @@ import net.minecraft.world.entity.monster.WitherSkeleton;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
@@ -61,6 +64,8 @@ import net.minecraft.world.level.storage.loot.predicates.LootItemRandomChanceCon
 import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.LootTableLoadEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.*;
@@ -481,6 +486,70 @@ public class ServerEvents {
             DebuggerEventsCommon.onEntityUpdate(event);
         }
 
+        // Correct area effect cloud
+        if (event.getEntityLiving() != null) {
+            LivingEntity livingEntity = event.getEntityLiving();
+
+            List<AreaEffectCloud> areaEffectCloudList = livingEntity.level.getEntitiesOfClass(AreaEffectCloud.class, livingEntity.getBoundingBox().inflate(2d));
+            areaEffectCloudList.removeIf(areaEffectCloud -> {
+                return areaEffectCloud.tickCount % 5 != 0 || areaEffectCloud.getPotion().getEffects().isEmpty();
+            });
+
+            if (areaEffectCloudList.isEmpty() && livingEntity instanceof IMultipartEntity multipartEntity) {
+                // Entity part might be in one, check that too
+                // TODO: add method in IMultipartEntity so we can enumerate all parts
+            }
+
+            areaEffectCloudList.forEach(areaEffectCloud -> {
+                double dx = livingEntity.getX() - areaEffectCloud.getX();
+                double dz = livingEntity.getZ() - areaEffectCloud.getZ();
+                double horizontalDistanceSqr = dx * dx + dz * dz;
+                // Vanilla use the distance between center, this uses distance from center to victim's bounding box
+                // Area effect cloud does not have a tick event, we let the victim check if they're in one
+                if (horizontalDistanceSqr > (double) areaEffectCloud.getRadius() * areaEffectCloud.getRadius()) {
+                    // This situation is filtered out in vanilla, we add it back so dragons can get potion effects
+                    double correctDistance = livingEntity.getBoundingBox().clip(areaEffectCloud.getPosition(1f),
+                                                                   livingEntity.getPosition(1.0f)
+                    ).orElse(areaEffectCloud.getPosition(1f)).subtract(areaEffectCloud.getPosition(1f)).length();
+                    if (correctDistance < (double) areaEffectCloud.getRadius()) {
+                        List<MobEffectInstance> list = Lists.newArrayList();
+
+                        for(MobEffectInstance mobeffectinstance : areaEffectCloud.getPotion().getEffects()) {
+                            list.add(new MobEffectInstance(mobeffectinstance.getEffect(), mobeffectinstance.getDuration() / 4, mobeffectinstance.getAmplifier(), mobeffectinstance.isAmbient(), mobeffectinstance.isVisible()));
+                        }
+
+                        for(MobEffectInstance mobeffectinstance1 : list) {
+                            if (mobeffectinstance1.getEffect().isInstantenous()) {
+                                mobeffectinstance1.getEffect().applyInstantenousEffect(areaEffectCloud, areaEffectCloud.getOwner(), livingEntity, mobeffectinstance1.getAmplifier(), 0.5D);
+                            } else {
+                                livingEntity.addEffect(new MobEffectInstance(mobeffectinstance1), areaEffectCloud);
+                            }
+                        }
+                        
+                        float f = areaEffectCloud.getRadius();
+                        if (areaEffectCloud.getRadiusOnUse() != 0.0F) {
+                            f += areaEffectCloud.getRadiusOnUse();
+                            if (f < 0.5F) {
+                                areaEffectCloud.discard();
+                                return;
+                            }
+
+                            areaEffectCloud.setRadius(f);
+                        }
+
+                        if (areaEffectCloud.getDurationOnUse() != 0) {
+                            areaEffectCloud.setDuration(areaEffectCloud.getDuration() + areaEffectCloud.getDurationOnUse());
+                            if (areaEffectCloud.getDuration() <= 0) {
+                                areaEffectCloud.discard();
+                                return;
+                            }
+                        }
+                        
+                    }
+                }
+            });
+        }
+
         if (ChainProperties.hasChainData(event.getEntityLiving())) {
             ChainProperties.tickChain(event.getEntityLiving());
         }
@@ -566,6 +635,102 @@ public class ServerEvents {
 
     @SubscribeEvent
     public void onProjectileImpact(ProjectileImpactEvent event) {
+        // Correct potion effect
+        Projectile projectile = event.getProjectile();
+        Entity shooter = projectile.getOwner();
+        Entity directHit = event.getRayTraceResult().getType() == HitResult.Type.ENTITY ? ((EntityHitResult) event.getRayTraceResult()).getEntity() : null;
+        if (projectile instanceof ThrownPotion potion) {
+            // Reference ThrownPotion#applySplash
+            List<MobEffectInstance> effectInstanceList = PotionUtils.getMobEffects(potion.getItem());
+
+            AABB aabb = potion.getBoundingBox().inflate(4.0d, 2.0d, 4.0d);
+            Vec3 potionPos = potion.getPosition(1.0f);
+            List<Entity> entityList = potion.level.getEntitiesOfClass(Entity.class, aabb, entity -> (
+                    (entity instanceof EntityDragonPart dragonPart
+                            && dragonPart.getParent() != null)
+                            || entity instanceof LivingEntity
+            ));
+            if (!entityList.isEmpty()) {
+                Entity thrower = potion.getEffectSource();
+
+                for (Entity effectedEntity : entityList) {
+                    if (effectedEntity instanceof EntityDragonPart dragonPart) {
+                        LivingEntity parent = (LivingEntity) dragonPart.getParent();
+                        if (parent.isAffectedByPotions()) {
+                            double d0 = dragonPart.getBoundingBox().clip(potionPos,
+                                                                         dragonPart.getPosition(1.0f)
+                            ).orElse(potionPos).subtract(potionPos).length();
+                            if (d0 < 16.0D) {
+                                double d1 = 1.0D - Math.sqrt(d0) / 4.0D;
+                                if (dragonPart == directHit) {
+                                    d1 = 1.0D;
+                                }
+
+                                for (MobEffectInstance mobeffectinstance : effectInstanceList) {
+                                    MobEffect mobeffect = mobeffectinstance.getEffect();
+                                    if (mobeffect.isInstantenous()) {
+                                        mobeffect.applyInstantenousEffect(potion,
+                                                                          potion.getOwner(),
+                                                                          parent,
+                                                                          mobeffectinstance.getAmplifier(),
+                                                                          d1
+                                        );
+                                    } else {
+                                        int i = (int) (d1 * (double) mobeffectinstance.getDuration() + 0.5D);
+                                        if (i > 20) {
+                                            parent.addEffect(new MobEffectInstance(mobeffect,
+                                                                                   i,
+                                                                                   mobeffectinstance.getAmplifier(),
+                                                                                   mobeffectinstance.isAmbient(),
+                                                                                   mobeffectinstance.isVisible()
+                                            ), thrower);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (effectedEntity instanceof LivingEntity) {
+                        LivingEntity livingEntity = (LivingEntity) effectedEntity;
+                        if (livingEntity.isAffectedByPotions()) {
+                            double d0 = livingEntity.getBoundingBox().clip(potionPos,
+                                                                           livingEntity.getPosition(1.0f)
+                            ).orElse(potionPos).subtract(potionPos).length();
+                            if (d0 < 16.0D) {
+                                double d1 = 1.0D - Math.sqrt(d0) / 4.0D;
+                                if (livingEntity == directHit) {
+                                    d1 = 1.0D;
+                                }
+
+                                for (MobEffectInstance mobeffectinstance : effectInstanceList) {
+                                    MobEffect mobeffect = mobeffectinstance.getEffect();
+                                    if (mobeffect.isInstantenous()) {
+                                        mobeffect.applyInstantenousEffect(potion,
+                                                                          potion.getOwner(),
+                                                                          livingEntity,
+                                                                          mobeffectinstance.getAmplifier(),
+                                                                          d1
+                                        );
+                                    } else {
+                                        int i = (int) (d1 * (double) mobeffectinstance.getDuration() + 0.5D);
+                                        if (i > 20) {
+                                            livingEntity.addEffect(new MobEffectInstance(mobeffect,
+                                                                                         i,
+                                                                                         mobeffectinstance.getAmplifier(),
+                                                                                         mobeffectinstance.isAmbient(),
+                                                                                         mobeffectinstance.isVisible()
+                                            ), thrower);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
         if (event.getRayTraceResult() != null && event.getRayTraceResult() instanceof EntityHitResult) {
             EntityHitResult entityResult = (EntityHitResult) event.getRayTraceResult();
             if (entityResult.getEntity() != null && entityResult.getEntity() instanceof EntityGhost) {
