@@ -975,7 +975,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
             this.setDeltaMovement(this.getDeltaMovement().add(0, up, 0));
         }
         if ((flying || hovering) && tickCount % 20 == 0 && this.isOverAir()) {
-            this.playSound(SoundEvents.ENDER_DRAGON_FLAP, this.getSoundVolume() * (IafConfig.dragonFlapNoiseDistance / 2), 0.6F + this.random.nextFloat() * 0.6F * this.getVoicePitch());
+            this.playSound(IafSoundRegistry.HIPPOGRYPH_FLAP, this.getSoundVolume() * (IafConfig.dragonFlapNoiseDistance / 2), 0.6F + this.random.nextFloat() * 0.6F * this.getVoicePitch());
         }
         if (this.isOnGround() && this.doesWantToLand() && (this.isFlying() || this.isHovering())) {
             this.setFlying(false);
