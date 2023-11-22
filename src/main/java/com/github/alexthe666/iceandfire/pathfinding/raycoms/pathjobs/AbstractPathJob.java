@@ -626,6 +626,9 @@ public abstract class AbstractPathJob implements Callable<Path> {
     }
 
     private void walkCurrentNode(final MNode currentNode) {
+final LivingEntity livingEntity = entity.get();
+        final float stepHeight = livingEntity == null ? 0 : livingEntity.maxUpStep;
+
         BlockPos dPos = BLOCKPOS_IDENTITY;
         if (currentNode.parent != null) {
             dPos = currentNode.pos.subtract(currentNode.parent.pos);
@@ -640,7 +643,8 @@ public abstract class AbstractPathJob implements Callable<Path> {
         if (onLadderGoingDown(currentNode, dPos)) {
             walk(currentNode, BLOCKPOS_DOWN);
         }
-        if (pathingOptions.canClimb()) {
+        // search upward
+        if (pathingOptions.canClimb() || stepHeight > dPos.getY()) {
             //If the entity can climb and it needs to climb a block higher than 1 block
             //TODO: Add code for climbing downwards
             if (getHighest(currentNode).getFirst() > 1) {
@@ -1431,13 +1435,14 @@ public abstract class AbstractPathJob implements Callable<Path> {
 
     protected SurfaceType isWalkableSurface(final BlockState blockState, final BlockPos pos) {
         final Block block = blockState.getBlock();
-        if (block instanceof FenceBlock
-            || block instanceof FenceGateBlock
-            || block instanceof WallBlock
+        final LivingEntity livingEntity = entity.get();
+        final float stepHeight = livingEntity == null ? 1.0f : livingEntity.maxUpStep;
+
+        if (block instanceof WallBlock
             || block instanceof FireBlock
             || block instanceof CampfireBlock
             || block instanceof BambooBlock
-            || (blockState.getShape(world, pos).max(Direction.Axis.Y) > 1.0)) {
+            || (blockState.getBlockSupportShape(world, pos).max(Direction.Axis.Y) > stepHeight)) {
             return SurfaceType.NOT_PASSABLE;
         }
 

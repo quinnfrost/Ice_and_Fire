@@ -32,15 +32,18 @@ public enum SurfaceType
      */
     public static SurfaceType getSurfaceType(final BlockGetter world, final BlockState blockState, final BlockPos pos) {
         final Block block = blockState.getBlock();
-        if (block instanceof FenceBlock
-            || block instanceof FenceGateBlock
-            || block instanceof WallBlock
+        if (block instanceof WallBlock
             || block instanceof FireBlock
             || block instanceof CampfireBlock
             || block instanceof BambooBlock
             || block instanceof DoorBlock
             || block instanceof MagmaBlock) {
             return SurfaceType.NOT_PASSABLE;
+        }
+
+        if (block instanceof FenceBlock
+                || block instanceof FenceGateBlock) {
+            return SurfaceType.WALKABLE;
         }
 
         final VoxelShape shape = blockState.getShape(world, pos);
