@@ -79,6 +79,8 @@ public final class IafSoundRegistry {
 
     public static final SoundEvent HIPPOGRYPH_DIE = createSoundEvent("hippogryph_die");
 
+    public static final SoundEvent HIPPOGRYPH_FLAP = createSoundEvent("hippogryph_flap");
+
     public static final SoundEvent GORGON_IDLE = createSoundEvent("gorgon_idle");
 
     public static final SoundEvent GORGON_HURT = createSoundEvent("gorgon_hurt");

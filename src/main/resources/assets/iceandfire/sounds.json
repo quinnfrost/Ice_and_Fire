@@ -1353,6 +1353,36 @@
     ],
     "subtitle": "iceandfire.sound.subtitle.hippogryph_die"
   },
+  "hippogryph_flap": {
+    "catagory": "neutral",
+    "sounds": [
+      {
+        "name": "minecraft:mob/enderdragon/wings1",
+        "volume": 0.6
+      },
+      {
+        "name": "minecraft:mob/enderdragon/wings2",
+        "volume": 0.6
+      },
+      {
+        "name": "minecraft:mob/enderdragon/wings3",
+        "volume": 0.6
+      },
+      {
+        "name": "minecraft:mob/enderdragon/wings4",
+        "volume": 0.6
+      },
+      {
+        "name": "minecraft:mob/enderdragon/wings5",
+        "volume": 0.6
+      },
+      {
+        "name": "minecraft:mob/enderdragon/wings6",
+        "volume": 0.6
+      }
+    ],
+    "subtitle": "iceandfire.sound.subtitle.hippogryph_flap"
+  },
   "egg_hatch": {
     "category": "neutral",
     "sounds": [
