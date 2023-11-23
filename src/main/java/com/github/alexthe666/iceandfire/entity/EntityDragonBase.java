@@ -20,6 +20,7 @@ import com.github.alexthe666.iceandfire.inventory.ContainerDragon;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.item.ItemDragonArmor;
 import com.github.alexthe666.iceandfire.item.ItemSummoningCrystal;
+import com.github.alexthe666.iceandfire.message.MessageSyncReferenceDragon;
 import com.github.alexthe666.iceandfire.message.MessageDragonSetBurnBlock;
 import com.github.alexthe666.iceandfire.message.MessageStartRidingMob;
 import com.github.alexthe666.iceandfire.misc.IafSoundRegistry;
@@ -555,9 +556,13 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     public void openInventory(Player player) {
-        if (!this.level.isClientSide)
+        if (!this.level.isClientSide) {
             NetworkHooks.openGui((ServerPlayer) player, getMenuProvider());
-        IceAndFire.PROXY.setReferencedMob(this);
+            IceAndFire.sendMSGToPlayer(new MessageSyncReferenceDragon(this), (ServerPlayer) player);
+        } else {
+            IceAndFire.sendMSGToServer(new MessageSyncReferenceDragon(this));
+        }
+//        IceAndFire.PROXY.setReferencedMob(this);
     }
 
     public MenuProvider getMenuProvider() {

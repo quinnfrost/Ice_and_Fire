@@ -237,6 +237,12 @@ public class IceAndFire {
                 .decoder(MessageCommandEntity::decoder)
                 .consumer(MessageCommandEntity::handler)
                 .add();
+
+        NETWORK_WRAPPER.messageBuilder(MessageSyncReferenceDragon.class, packetsRegistered++)
+                .encoder(MessageSyncReferenceDragon::encoder)
+                .decoder(MessageSyncReferenceDragon::decoder)
+                .consumer(MessageSyncReferenceDragon::handler)
+                .add();
     }
 
     private void setupClient(final FMLClientSetupEvent event) {
