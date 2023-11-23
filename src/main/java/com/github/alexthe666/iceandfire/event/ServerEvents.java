@@ -546,22 +546,22 @@ public class ServerEvents {
             }
         }
         // Handle debug path render
-        if (!event.getWorld().isClientSide() && event.getTarget() instanceof Mob && event.getItemStack().getItem() == Items.STICK) {
-            if (AiDebug.isEnabled())
-                AiDebug.addEntity((Mob) event.getTarget());
-            if (Pathfinding.isDebug()) {
-                if (AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(),
-                                                             UUID.randomUUID()
-                ).equals(event.getTarget().getUUID())) {
-                    AbstractPathJob.trackingMap.remove(event.getPlayer());
-                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()),
-                                               (ServerPlayer) event.getPlayer()
-                    );
-                } else {
-                    AbstractPathJob.trackingMap.put(event.getPlayer(), event.getTarget().getUUID());
-                }
-            }
-        }
+//        if (!event.getWorld().isClientSide() && event.getTarget() instanceof Mob && event.getItemStack().getItem() == Items.STICK) {
+//            if (AiDebug.isEnabled())
+//                AiDebug.addEntity((Mob) event.getTarget());
+//            if (Pathfinding.isDebug()) {
+//                if (AbstractPathJob.trackingMap.getOrDefault(event.getPlayer(),
+//                                                             UUID.randomUUID()
+//                ).equals(event.getTarget().getUUID())) {
+//                    AbstractPathJob.trackingMap.remove(event.getPlayer());
+//                    IceAndFire.sendMSGToPlayer(new MessageSyncPath(new HashSet<>(), new HashSet<>(), new HashSet<>()),
+//                                               (ServerPlayer) event.getPlayer()
+//                    );
+//                } else {
+//                    AbstractPathJob.trackingMap.put(event.getPlayer(), event.getTarget().getUUID());
+//                }
+//            }
+//        }
     }
 
     @SubscribeEvent
