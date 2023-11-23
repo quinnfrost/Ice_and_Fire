@@ -1583,9 +1583,21 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     passenger.stopRiding();
                 }
 
-                this.setYRot(passenger.getYRot());
-                this.setYHeadRot(passenger.getYHeadRot());
-                this.setXRot(passenger.getXRot());
+                if (passenger instanceof Player rider
+//                        && !this.isAttacking()
+//                        && !this.isBreathingFire()
+//                        && Mth.abs(rider.zza) < 0.05
+//                        && this.getDeltaMovement().x == 0.0f
+//                        && this.getDeltaMovement().z == 0.0f
+                        && this.isGoingUp()
+                        && this.isGoingDown()
+                ) {
+                } else {
+                    this.setYRot(passenger.getYRot());
+                    this.setYHeadRot(passenger.getYHeadRot());
+                    this.setXRot(passenger.getXRot());
+                }
+
 
                 Vec3 riderPos = this.getRiderPosition();
                 passenger.setPos(riderPos.x, riderPos.y + passenger.getBbHeight(), riderPos.z);
