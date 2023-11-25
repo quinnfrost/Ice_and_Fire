@@ -1582,10 +1582,16 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 if (this.isModelDead()) {
                     passenger.stopRiding();
                 }
-
-                this.setYRot(passenger.getYRot());
-                this.setYHeadRot(passenger.getYHeadRot());
-                this.setXRot(passenger.getXRot());
+                if (passenger instanceof Mob) {
+                    Mob mob = (Mob)passenger;
+                    this.yBodyRot = mob.yBodyRot;
+                }
+//                this.setYRot(passenger.getYRot());
+//                this.setYHeadRot(passenger.getYHeadRot());
+//                this.setXRot(passenger.getXRot());
+                if (passenger instanceof LivingEntity) {
+                    ((LivingEntity)passenger).yBodyRot = this.yBodyRot;
+                }
 
                 Vec3 riderPos = this.getRiderPosition();
                 passenger.setPos(riderPos.x, riderPos.y + passenger.getBbHeight(), riderPos.z);
@@ -2046,6 +2052,13 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 super.travel(pTravelVector);
                 return;
             }
+
+            this.setYRot(rider.getYRot());
+            this.yRotO = this.getYRot();
+            this.setXRot(rider.getXRot() * 0.5F);
+            this.setRot(this.getYRot(), this.getXRot());
+            this.yBodyRot = this.getYRot();
+            this.yHeadRot = this.yBodyRot;
 
             // Flying control, include flying through waterfalls
             if (isHovering() || isFlying()) {
