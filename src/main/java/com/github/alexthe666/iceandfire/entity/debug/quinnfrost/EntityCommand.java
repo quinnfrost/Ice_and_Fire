@@ -8,6 +8,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
@@ -103,6 +105,9 @@ public class EntityCommand {
     public static void setMoveTo(PathfinderMob commandEntity, Vec3 pos) {
         if (pos != null) {
             commandEntity.getNavigation().moveTo(pos.x, pos.y, pos.z, 1.0);
+            if (DebugUtils.hasMemoryItem(commandEntity)) {
+                commandEntity.getBrain().setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(pos, 1.0f, 0));
+            }
             if (commandEntity instanceof EntityDragonBase dragon && (dragon.isFlying() || dragon.isHovering())) {
                 dragon.flightManager.setFlightTarget(pos);
             }
@@ -110,9 +115,16 @@ public class EntityCommand {
     }
 
     public static void setAttackTarget(PathfinderMob commandEntity, LivingEntity targetEntity) {
+
         if (!targetEntity.equals(commandEntity)) {
+            if (DebugUtils.hasMemoryItem(commandEntity)) {
+                commandEntity.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, targetEntity);
+            }
             commandEntity.setTarget(targetEntity);
         } else {
+            if (DebugUtils.hasMemoryItem(commandEntity)) {
+                commandEntity.getBrain().eraseMemory(MemoryModuleType.ATTACK_TARGET);
+            }
             commandEntity.setTarget(null);
         }
     }
