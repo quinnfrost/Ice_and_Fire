@@ -1,6 +1,6 @@
 package com.github.alexthe666.iceandfire.entity.behavior;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
@@ -12,7 +12,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
 
-public abstract class FlightFollowing<E extends Mob & IAllMethodINeed> extends Behavior<E> {
+public abstract class FlightFollowing<E extends Mob & IBehaviorApplicable> extends Behavior<E> {
     public static Vec3 debug;
     public static final boolean CLOCKWISE = true;
     protected int nextPosUpdateInterval;

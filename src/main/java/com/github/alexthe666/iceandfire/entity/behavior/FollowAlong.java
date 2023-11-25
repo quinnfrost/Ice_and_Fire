@@ -1,13 +1,11 @@
 package com.github.alexthe666.iceandfire.entity.behavior;
 
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonFlightUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
@@ -16,7 +14,7 @@ import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
-public class FollowAlong<E extends TamableAnimal & IAllMethodINeed> extends FlightFollowing<E>{
+public class FollowAlong<E extends TamableAnimal & IBehaviorApplicable> extends FlightFollowing<E>{
     public FollowAlong(int updateInterval) {
         super(ImmutableMap.of(
                 DragonMemoryModuleType.LAST_OWNER_HURT_BY_TARGET, MemoryStatus.VALUE_ABSENT,

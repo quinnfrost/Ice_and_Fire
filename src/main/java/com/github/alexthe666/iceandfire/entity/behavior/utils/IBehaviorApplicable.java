@@ -1,9 +1,8 @@
 package com.github.alexthe666.iceandfire.entity.behavior.utils;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 
-public interface IAllMethodINeed {
+public interface IBehaviorApplicable {
     boolean isOverAirLogic();
 
     boolean isFlying();

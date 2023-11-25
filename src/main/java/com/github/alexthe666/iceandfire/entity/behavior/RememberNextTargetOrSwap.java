@@ -1,6 +1,6 @@
 package com.github.alexthe666.iceandfire.entity.behavior;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class RememberNextTargetOrSwap<E extends Mob & IAllMethodINeed> extends Behavior<E> {
+public class RememberNextTargetOrSwap<E extends Mob & IBehaviorApplicable> extends Behavior<E> {
     private final Predicate<E> canAttackPredicate;
     private final Function<E, Optional<? extends LivingEntity>> targetFinderFunction;
     private LivingEntity nextTarget;

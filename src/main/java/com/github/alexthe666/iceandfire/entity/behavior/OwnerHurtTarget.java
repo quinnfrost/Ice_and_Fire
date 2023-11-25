@@ -1,6 +1,6 @@
 package com.github.alexthe666.iceandfire.entity.behavior;
 
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
@@ -8,10 +8,9 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.behavior.Behavior;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.memory.MemoryStatus;
-import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 
 @Deprecated
-public class OwnerHurtTarget<E extends TamableAnimal & IAllMethodINeed> extends Behavior<E> {
+public class OwnerHurtTarget<E extends TamableAnimal & IBehaviorApplicable> extends Behavior<E> {
     public static final int AI_TICK_TIMESTAMP_OFFSET = -1;
     private LivingEntity ownerLastHurt;
     private int timestamp;

@@ -1,8 +1,8 @@
-package com.github.alexthe666.iceandfire.entity.behavior;
+package com.github.alexthe666.iceandfire.entity.behavior.core;
 
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.AdvancedPathNavigate;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.core.BlockPos;
@@ -18,7 +18,7 @@ import net.minecraft.world.level.pathfinder.Path;
 import javax.annotation.Nullable;
 import java.util.Optional;
 
-public class FlyAndHover<E extends Mob & IAllMethodINeed> extends Behavior<E> {
+public class FlyAndHover<E extends Mob & IBehaviorApplicable> extends Behavior<E> {
     private static final int MAX_COOLDOWN_BEFORE_RETRYING = 40;
     // Path stuck cool down
     private int remainingCooldown;

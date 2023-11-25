@@ -6,11 +6,10 @@ import com.github.alexthe666.citadel.animation.IAnimatedEntity;
 import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.entity.behavior.BehaviorHippogryph;
-import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonSensorType;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.CustomMoveController;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.IAllMethodINeed;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.enums.EnumHippogryphTypes;
 import com.github.alexthe666.iceandfire.inventory.ContainerHippogryph;
@@ -60,6 +59,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.schedule.Activity;
+import net.minecraft.world.entity.schedule.Schedule;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -77,10 +77,9 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.EnumSet;
-import java.util.Optional;
 import java.util.Random;
 
-public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnimatedEntity, IDragonFlute, IVillagerFear, IAnimalFear, IDropArmor, IFlyingMount, ICustomMoveController, IAllMethodINeed {
+public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnimatedEntity, IDragonFlute, IVillagerFear, IAnimalFear, IDropArmor, IFlyingMount, ICustomMoveController, IBehaviorApplicable {
 
     private static final int FLIGHT_CHANCE_PER_TICK = 1200;
     private static final EntityDataAccessor<Integer> VARIANT = SynchedEntityData.defineId(EntityHippogryph.class, EntityDataSerializers.INT);
@@ -153,60 +152,10 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         return (Brain<EntityHippogryph>) super.getBrain();
     }
 
-    private static final ImmutableList<MemoryModuleType<?>> MEMORY_TYPES = ImmutableList.of(
-            MemoryModuleType.LOOK_TARGET,
+    private static final ImmutableList<MemoryModuleType<?>> MEMORY_TYPES = BehaviorHippogryph.getMemoryTypes();
 
-            MemoryModuleType.WALK_TARGET,
-            DragonMemoryModuleType.PREFERRED_NAVIGATION_TYPE,
-            DragonMemoryModuleType.COMMAND_STAY_POSITION,
-            DragonMemoryModuleType.FORBID_WALKING,
-            DragonMemoryModuleType.FORBID_FLYING,
-            MemoryModuleType.PATH,
-            MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE,
+    private static final ImmutableList<SensorType<? extends Sensor<? super EntityHippogryph>>> SENSOR_TYPES = BehaviorHippogryph.getSensorTypes();
 
-            MemoryModuleType.ATTACK_TARGET,
-            MemoryModuleType.ATTACK_COOLING_DOWN,
-            MemoryModuleType.NEAREST_ATTACKABLE,
-            MemoryModuleType.NEAREST_HOSTILE,
-            DragonMemoryModuleType.NEAREST_HUNTABLE,
-
-
-            MemoryModuleType.HURT_BY,
-            MemoryModuleType.HURT_BY_ENTITY,
-            DragonMemoryModuleType.LAST_OWNER_HURT_TARGET,
-            DragonMemoryModuleType.LAST_OWNER_HURT_BY_TARGET,
-
-            MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES,
-            MemoryModuleType.NEAREST_VISIBLE_ADULT,
-
-            MemoryModuleType.BREED_TARGET,
-            MemoryModuleType.TEMPTING_PLAYER,
-            MemoryModuleType.TEMPTATION_COOLDOWN_TICKS,
-            MemoryModuleType.IS_TEMPTED,
-
-            MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM,
-
-            MemoryModuleType.HOME,
-            DragonMemoryModuleType.FORBID_GO_HOME,
-
-            DragonMemoryModuleType.PERSIST_MEMORY_TEST
-
-    );
-    private static final ImmutableList<SensorType<? extends Sensor<? super EntityHippogryph>>> SENSOR_TYPES = ImmutableList.of(
-            SensorType.NEAREST_LIVING_ENTITIES,
-            DragonSensorType.NEAREST_ADULT_TAMED,
-
-            DragonSensorType.OWNER_HURT_BY_TARGET_SENSOR,
-            DragonSensorType.OWNER_HURT_TARGET_SENSOR,
-            SensorType.HURT_BY,
-
-            DragonSensorType.HIPPOGRYPH_TEMPTATIONS,
-            DragonSensorType.NEAREST_WANTED_ITEM_TAMED,
-
-            DragonSensorType.HIPPOGRYPH_HUNTABLES,
-
-            DragonSensorType.SENSOR_TEST
-    );
     protected Brain.Provider<EntityHippogryph> brainProvider() {
         return Brain.provider(MEMORY_TYPES, SENSOR_TYPES);
     }
@@ -230,6 +179,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 
     private void registerBrainGoals(Brain<EntityHippogryph> brain) {
         BehaviorHippogryph.registerActivities(brain);
+        brain.setSchedule(Schedule.EMPTY);
         brain.setCoreActivities(ImmutableSet.of(Activity.CORE));
         brain.setDefaultActivity(Activity.IDLE);
         brain.useDefaultActivity();
@@ -484,7 +434,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 
     @Override
     public boolean canLand() {
-        if (!IAllMethodINeed.super.canLand()) {
+        if (!IBehaviorApplicable.super.canLand()) {
             return false;
         }
         return !brain.getMemory(DragonMemoryModuleType.FORBID_WALKING).orElse(false)
@@ -494,7 +444,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 
     @Override
     public boolean canFly() {
-        if (!IAllMethodINeed.super.canFly()) {
+        if (!IBehaviorApplicable.super.canFly()) {
             return false;
         }
         return !brain.getMemory(DragonMemoryModuleType.FORBID_FLYING).orElse(false)
