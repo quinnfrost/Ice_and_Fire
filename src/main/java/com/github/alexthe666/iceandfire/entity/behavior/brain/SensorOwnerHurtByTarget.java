@@ -14,7 +14,7 @@ public class SensorOwnerHurtByTarget extends Sensor<TamableAnimal> {
     public int timestamp;
     @Override
     protected void doTick(ServerLevel pLevel, TamableAnimal pEntity) {
-        if (pEntity.isTame()) {
+        if (pEntity.isTame() && pEntity.getOwner() != null) {
             LivingEntity owner = pEntity.getOwner();
             LivingEntity protectToAttack = owner.getLastHurtByMob();
             if (protectToAttack != null
