@@ -165,6 +165,9 @@ public class GuiDragon extends EffectRenderingInventoryScreen<ContainerDragon> {
         Quaternion quaternion1 = Vector3f.XP.rotationDegrees(f1 * 20.0F);
         quaternion.mul(quaternion1);
         posestack1.mulPose(quaternion);
+
+        float entityYBodyRotO = pLivingEntity.yBodyRotO;
+
         float entityYBodyRot = pLivingEntity.yBodyRot;
         float entityYRot = pLivingEntity.getYRot();
         float entityXRot = pLivingEntity.getXRot();
@@ -199,6 +202,9 @@ public class GuiDragon extends EffectRenderingInventoryScreen<ContainerDragon> {
         multibuffersource$buffersource.endBatch();
         entityrenderdispatcher.setRenderShadow(true);
         pLivingEntity.yBodyRot = entityYBodyRot;
+
+        pLivingEntity.yBodyRotO = entityYBodyRotO;
+
         pLivingEntity.setYRot(entityYRot);
         pLivingEntity.setXRot(entityXRot);
         pLivingEntity.yHeadRotO = entityYHeadRotO;
@@ -207,7 +213,6 @@ public class GuiDragon extends EffectRenderingInventoryScreen<ContainerDragon> {
         RenderSystem.applyModelViewMatrix();
         Lighting.setupFor3DItems();
     }
-
 
     @Override
     protected void renderEffects(PoseStack pPoseStack, int pMouseX, int pMouseY) {
