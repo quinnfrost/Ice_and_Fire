@@ -62,7 +62,6 @@ public class GuiDragon extends AbstractContainerScreen<ContainerDragon> {
             EntityDragonBase dragon = (EntityDragonBase) entity;
             float dragonScale = 1F / Math.max(0.0001F, dragon.getScale());
             // Origin at top left
-            // 521 / 239 -> 479 / 256
             renderEntityInInventory(leftPadding + 88,
                                     topPadding + (int) (0.5F * (dragon.flyProgress)) + 55,
                                     (int) (dragonScale * 23F),
@@ -186,8 +185,21 @@ public class GuiDragon extends AbstractContainerScreen<ContainerDragon> {
                 );
             }
         }
+
     }
 
+    /**
+     * Renders the entity in the inventory<br>
+     * Vanilla method have issue dealing with long necks
+     * In {@link net.minecraft.client.renderer.entity.LivingEntityRenderer#render}, {@link LivingEntity#yBodyRotO} is used, but it's not properly updated in {@link InventoryScreen#renderEntityInInventory}
+     * @param pPosX
+     * @param pPosY
+     * @param pScale
+     * @param pMouseX
+     * @param pMouseY
+     * @param pLivingEntity
+     * @see InventoryScreen#renderEntityInInventory
+     */
     public static void renderEntityInInventory(int pPosX, int pPosY, int pScale, float pMouseX, float pMouseY, LivingEntity pLivingEntity) {
         // Origin at top left corner
         float f = (float) Math.atan((double) (pMouseX / 40.0F));
@@ -204,6 +216,9 @@ public class GuiDragon extends AbstractContainerScreen<ContainerDragon> {
         Quaternion quaternion1 = Vector3f.XP.rotationDegrees(f1 * 20.0F);
         quaternion.mul(quaternion1);
         posestack1.mulPose(quaternion);
+
+        float entityYBodyRotO = pLivingEntity.yBodyRotO;
+
         float entityYBodyRot = pLivingEntity.yBodyRot;
         float entityYRot = pLivingEntity.getYRot();
         float entityXRot = pLivingEntity.getXRot();
@@ -238,6 +253,9 @@ public class GuiDragon extends AbstractContainerScreen<ContainerDragon> {
         multibuffersource$buffersource.endBatch();
         entityrenderdispatcher.setRenderShadow(true);
         pLivingEntity.yBodyRot = entityYBodyRot;
+
+        pLivingEntity.yBodyRotO = entityYBodyRotO;
+
         pLivingEntity.setYRot(entityYRot);
         pLivingEntity.setXRot(entityXRot);
         pLivingEntity.yHeadRotO = entityYHeadRotO;
