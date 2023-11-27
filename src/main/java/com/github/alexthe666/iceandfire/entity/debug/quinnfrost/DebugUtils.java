@@ -151,6 +151,17 @@ public class DebugUtils {
         return mob.getPosition(1.0f).distanceTo(new Vec3(mob.xOld, mob.yOld, mob.zOld)) / 0.05;
     }
 
+    public static boolean hasMemoryItem(Mob mob) {
+        return !mob.getBrain().getMemories().isEmpty();
+    }
+
+    public static <T> Optional<T> getMemoryItem(Mob mob, MemoryModuleType<T> memoryModuleType) {
+        if (hasMemoryItem(mob)) {
+            return mob.getBrain().getMemory(memoryModuleType);
+        }
+        return Optional.empty();
+    }
+
     /**
      * Try to get an entity's target position
      *
@@ -331,20 +342,23 @@ public class DebugUtils {
     }
 
     public static List<String> getAttackTargetInfo(PathfinderMob mobEntity, Player player) {
-        LivingEntity targetEntity = mobEntity.getTarget();
+        LivingEntity targetEntity = getMemoryItem(mobEntity, MemoryModuleType.ATTACK_TARGET).orElse(mobEntity.getTarget());
+
         return List.of(
                 "AttackTarget: " + (targetEntity == null ? "-" :
-                        String.format("%s [%s] (%.1f/%s) [%d, %d, %d] (%.2f)",
+                        String.format("%s [%s]/%d (%.1f/%s) [%d, %d, %d] (%.2f)",
                                       targetEntity.getName().getString(),
                                       targetEntity.getEncodeId(),
-                                      mobEntity.getHealth(),
-                                      Objects.toString((mobEntity.getAttribute(
+                                      targetEntity.getId(),
+                                      targetEntity.getHealth(),
+                                      Objects.toString((targetEntity.getAttribute(
                                               Attributes.MAX_HEALTH).getValue()), "-"),
-                                      mobEntity.getTarget().blockPosition().getX(),
-                                      mobEntity.getTarget().blockPosition().getY(),
-                                      mobEntity.getTarget().blockPosition().getZ(),
+                                      targetEntity.blockPosition().getX(),
+                                      targetEntity.blockPosition().getY(),
+                                      targetEntity.blockPosition().getZ(),
                                       mobEntity.position().distanceTo(targetEntity.position())
-                        ))
+                        )
+                )
                 // Todo: target attack and defence info here
         );
     }
