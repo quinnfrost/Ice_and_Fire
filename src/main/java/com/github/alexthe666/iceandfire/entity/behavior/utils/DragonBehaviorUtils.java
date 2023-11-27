@@ -20,6 +20,14 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 public class DragonBehaviorUtils {
+    public enum AirborneState {
+        GROUNDED,
+        TAKEOFF,
+        HOVER,
+        FLY,
+        LANDING
+    }
+
     /**
      * Get entity looking at
      * This will return the first block or entity the ray encounters, for entity ray trace this won't go through walls.
@@ -246,8 +254,8 @@ public class DragonBehaviorUtils {
         }
         return false;
     }
-
     // Fixme
+
     public static boolean shouldHoverAt(LivingEntity dragon, WalkTarget walkTarget) {
 //        if (IafDragonBehaviorHelper.isOverAir(dragon)) {
 //            return true;
@@ -271,11 +279,19 @@ public class DragonBehaviorUtils {
 
     }
 
-    public enum AirborneState {
-        GROUNDED,
-        TAKEOFF,
-        HOVER,
-        FLY,
-        LANDING
+    public static float angleBetween(Vec3 vector1, Vec3 vector2) {
+        return (float) Math.acos(vector1.dot(vector2) / (vector1.length() * vector2.length()));
     }
+
+    public static boolean isInSight(LivingEntity livingEntity, Entity target) {
+        Vec3 livingView = livingEntity.getViewVector(1.0f);
+        Vec3 sightVector = livingView.vectorTo(target.position());
+        Vec3 lookVector = livingEntity.getViewVector(1.0f);
+        if (angleBetween(sightVector, lookVector) < Math.toRadians(60)) {
+            Vec3 targetEyePos = target.getEyePosition(1.0f);
+            return !isTargetBlocked(livingEntity, targetEyePos);
+        }
+        return false;
+    }
+
 }

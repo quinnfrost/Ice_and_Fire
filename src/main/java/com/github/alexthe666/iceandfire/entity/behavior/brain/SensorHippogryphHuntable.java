@@ -1,6 +1,7 @@
 package com.github.alexthe666.iceandfire.entity.behavior.brain;
 
 import com.github.alexthe666.iceandfire.entity.EntityHippogryph;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
@@ -37,7 +38,7 @@ public class SensorHippogryphHuntable extends NearestVisibleLivingEntitySensor {
     @Override
     protected boolean isMatchingEntity(LivingEntity pAttacker, LivingEntity pTarget) {
 //        return this.isClose(pAttacker, pTarget) && pTarget.isInWaterOrBubble() && (this.isHostileTarget(pTarget) || this.isHuntTarget(pAttacker, pTarget)) && Sensor.isEntityAttackable(pAttacker, pTarget);
-        return this.isClose(pAttacker, pTarget) && (this.isHostileTarget(pTarget) || this.isHuntTarget(pAttacker, pTarget)) && LongRangeVisibleLivingEntities.isEntityInRangeAttackable(pAttacker, pTarget, 64d, true);
+        return this.isClose(pAttacker, pTarget) && DragonBehaviorUtils.isInSight(pAttacker, pTarget) && (this.isHostileTarget(pTarget) || this.isHuntTarget(pAttacker, pTarget)) && LongRangeVisibleLivingEntities.isEntityInRangeAttackable(pAttacker, pTarget, 64d, true);
     }
     private boolean isHuntTarget(LivingEntity pAttacker, LivingEntity pTarget) {
         if (this.randomInterval > 0 && pAttacker.getRandom().nextInt(this.randomInterval) != 0) {

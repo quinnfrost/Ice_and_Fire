@@ -409,7 +409,7 @@ public class BehaviorHippogryph {
     }
 
     /**
-     * Hippogryph hunting
+     * Hippogryph hunting: attack with more interrupt conditions
      * This is seperated from wander, maybe it should?
      * 1. random look (more aggressive, distance mob only)
      * 2. tempting player will get attacked
@@ -431,12 +431,7 @@ public class BehaviorHippogryph {
                             hippogryph.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
                             hippogryph.land();
                         }
-                ) {
-                    @Override
-                    protected void start(ServerLevel pLevel, EntityHippogryph pEntity, long pGameTime) {
-                        super.start(pLevel, pEntity, pGameTime);
-                    }
-                }),
+                )),
                 Pair.of(0,
                         new RememberNextTargetOrSwap<>(hippogryph -> hippogryph.canMove(),
                                                        BehaviorHippogryph::findNearestValidAttackTarget
@@ -449,8 +444,7 @@ public class BehaviorHippogryph {
 //                        Pair.of(new OwnerHurtTarget<>(), 1),
 //                        Pair.of(new HurtByTarget<>(), 2)
 //                ))),
-                Pair.of(1, new DoNothing(20, 60)),
-                Pair.of(2, new UpdateActivityFromSchedule())
+                Pair.of(1, new DoNothing(20, 60))
         );
     }
 
