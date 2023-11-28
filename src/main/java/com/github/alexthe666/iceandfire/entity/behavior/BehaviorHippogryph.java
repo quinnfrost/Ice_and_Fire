@@ -19,6 +19,7 @@ import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.*;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
@@ -50,6 +51,7 @@ public class BehaviorHippogryph {
                 DragonMemoryModuleType.FORBID_FLYING,
                 MemoryModuleType.PATH,
                 MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE,
+                MemoryModuleType.HAS_HUNTING_COOLDOWN,
 
                 MemoryModuleType.ATTACK_TARGET,
                 MemoryModuleType.ATTACK_COOLING_DOWN,
@@ -360,9 +362,9 @@ public class BehaviorHippogryph {
         return ImmutableList.of(
                 // Random look
                 Pair.of(0, new RunOne<>(ImmutableMap.of(), ImmutableList.of(
-                        Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 6.0F), 2),
-                        Pair.of(new LookAtPoi<>(30, 60), 1),
-                        Pair.of(new DoNothing(30, 60), 2)
+                        Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 6.0F), 1),
+                        Pair.of(new LookAtPoi<>(30, 60), 2),
+                        Pair.of(new DoNothing(30, 60), 5)
                 ))),
                 // Breed
                 Pair.of(1, new AnimalMakeLove(IafEntityRegistry.HIPPOGRYPH.get(), 0.6F)),
@@ -396,10 +398,15 @@ public class BehaviorHippogryph {
                         MemoryModuleType.TEMPTING_PLAYER, MemoryStatus.VALUE_ABSENT,
                         MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, MemoryStatus.VALUE_ABSENT
                 ), ImmutableList.of(
-//                        Pair.of(new RandomStrollGround<>(0.9F, false), 2),
+                        Pair.of(new RunSometimes<>(new RandomStrollGround<EntityHippogryph>(0.9F, false) {
+                            @Override
+                            protected boolean checkExtraStartConditions(ServerLevel pLevel, PathfinderMob pOwner) {
+                                return !pOwner.getBrain().hasMemoryValue(MemoryModuleType.HOME) && super.checkExtraStartConditions(pLevel, pOwner);
+                            }
+                        }, UniformInt.of(1, 3)), 2),
                         Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 1.0f, 16), 2),
-                        Pair.of(new RandomStrollAir<>(0.9F, false), 2),
-//                        Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(30, 60)), 2),
+//                        Pair.of(new RandomStrollAir<>(0.9F, false), 2),
+                        Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(30, 60)), 2),
                         Pair.of(new DoNothing(60, 120), 2)
 //                        Pair.of(new SetWalkTargetFromLookTarget(AxolotlAi::canSetWalkTargetFromLookTarget, AxolotlAi::getSpeedModifier, 3), 3),
 //                        Pair.of(new RunIf<>(Entity::isInWaterOrBubble, new DoNothing(30, 60)), 5),
@@ -420,6 +427,11 @@ public class BehaviorHippogryph {
      */
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getHuntPackage() {
         return ImmutableList.of(
+                Pair.of(0, new StartAttacking<>(e -> {
+                    return e.getBrain().hasMemoryValue(DragonMemoryModuleType.NEAREST_HUNTABLE);
+                }, mob -> {
+                    return mob.getBrain().getMemory(DragonMemoryModuleType.NEAREST_HUNTABLE);
+                })),
                 Pair.of(0, new StopAttackingIf<>(
                         mob -> {
                             return false;
@@ -430,6 +442,7 @@ public class BehaviorHippogryph {
                         hippogryph -> {
                             hippogryph.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
                             hippogryph.land();
+                            hippogryph.getBrain().updateActivityFromSchedule(hippogryph.level.getDayTime(), hippogryph.level.getGameTime());
                         }
                 )),
                 Pair.of(0,

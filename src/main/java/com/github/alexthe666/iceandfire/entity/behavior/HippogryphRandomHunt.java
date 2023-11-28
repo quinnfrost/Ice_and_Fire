@@ -13,17 +13,17 @@ import net.minecraft.world.entity.ai.memory.MemoryStatus;
 
 public class HippogryphRandomHunt<E extends EntityHippogryph & IBehaviorApplicable> extends Behavior<E> {
     public HippogryphRandomHunt() {
-        super(ImmutableMap.of(DragonMemoryModuleType.NEAREST_HUNTABLE, MemoryStatus.VALUE_PRESENT));
+        super(ImmutableMap.of(DragonMemoryModuleType.NEAREST_HUNTABLE, MemoryStatus.VALUE_PRESENT, MemoryModuleType.HAS_HUNTING_COOLDOWN, MemoryStatus.VALUE_ABSENT));
     }
 
     @Override
     protected boolean checkExtraStartConditions(ServerLevel pLevel, E pOwner) {
-        return super.checkExtraStartConditions(pLevel, pOwner);
+        return pOwner.getRandom().nextInt(100) < 20 && super.checkExtraStartConditions(pLevel, pOwner);
     }
 
     @Override
     protected void start(ServerLevel pLevel, E pEntity, long pGameTime) {
         pEntity.getBrain().setActiveActivityIfPossible(DragonActivity.HUNT);
-        pEntity.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, pEntity.getBrain().getMemory(DragonMemoryModuleType.NEAREST_HUNTABLE).get());
+//        pEntity.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, pEntity.getBrain().getMemory(DragonMemoryModuleType.NEAREST_HUNTABLE).get());
     }
 }

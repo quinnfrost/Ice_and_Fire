@@ -287,7 +287,7 @@ public class DragonBehaviorUtils {
         Vec3 livingView = livingEntity.getViewVector(1.0f);
         Vec3 sightVector = livingView.vectorTo(target.position());
         Vec3 lookVector = livingEntity.getViewVector(1.0f);
-        if (angleBetween(sightVector, lookVector) < Math.toRadians(60)) {
+        if (angleBetween(sightVector.normalize(), lookVector.normalize()) < Math.toRadians(60)) {
             Vec3 targetEyePos = target.getEyePosition(1.0f);
             return !isTargetBlocked(livingEntity, targetEyePos);
         }
