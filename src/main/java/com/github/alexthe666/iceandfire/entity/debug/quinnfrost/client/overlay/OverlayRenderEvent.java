@@ -25,11 +25,11 @@ public class OverlayRenderEvent extends Gui {
             }
             OverlayCrossHair.renderStringCrossHair(event.getMatrixStack());
         }
-//        if (event.getType() == RenderGameOverlayEvent.ElementType.ALL) {
+        if (event.getType() == RenderGameOverlayEvent.ElementType.ALL) {
 //            OverlayCrossHair.renderScopeSuggestionQuad(event.getMatrixStack());
 //            OverlayCrossHair.renderScope(event.getMatrixStack());
-////            OverlayCrossHair.renderIconCrossHair(event.getMatrixStack());
-//        }
+//            OverlayCrossHair.renderIconCrossHair(event.getMatrixStack());
+        }
     }
 
 }
