@@ -165,8 +165,14 @@ public class BehaviorHippogryph {
             stopActivity(hippogryph, DragonActivity.FOLLOW);
         }
 
-        if (activity == DragonActivity.HUNT && brain.getActiveNonCoreActivity().orElse((Activity) null) != DragonActivity.HUNT) {
-            brain.setMemoryWithExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN, true, 2400L);
+        if (hippogryph.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).isPresent()) {
+            brain.setActiveActivityIfPossible(Activity.FIGHT);
+        } else {
+            stopActivity(hippogryph, Activity.FIGHT);
+        }
+
+        if (activity == Activity.FIGHT && brain.getActiveNonCoreActivity().orElse((Activity) null) != Activity.FIGHT) {
+            brain.setMemoryWithExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN, true, 240L);
         }
         Activity activity1 = brain.getActiveNonCoreActivity().orElse((Activity) null);
     }
@@ -240,7 +246,7 @@ public class BehaviorHippogryph {
     }
 
     public static double getAwareDistance(EntityHippogryph hippogryph) {
-        return 16d;
+        return hippogryph.isFlying() ? 128d : 16d;
     }
 
     @Deprecated
@@ -298,7 +304,7 @@ public class BehaviorHippogryph {
 
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getFightPackage() {
         return ImmutableList.of(
-                Pair.of(0, new StopAttackingIf<>(
+                Pair.of(0, new StopAttackingIfTargetInvalid<>(
                         mob -> {
                             return mob == null || !mob.isAlive();
                         },
@@ -387,10 +393,10 @@ public class BehaviorHippogryph {
                     @Override
                     protected void start(ServerLevel pLevel, EntityHippogryph pEntity, long pGameTime) {
                         super.start(pLevel, pEntity, pGameTime);
-                        pEntity.getBrain().setActiveActivityIfPossible(Activity.FIGHT);
+//                        pEntity.getBrain().setActiveActivityIfPossible(Activity.FIGHT);
                     }
                 }),
-                Pair.of(3, new HippogryphRandomHunt<>()),
+                Pair.of(3, new RunSometimes<>(new HippogryphRandomHunt<>(), UniformInt.of(0, 6))),
                 // Random stroll
                 Pair.of(4, new RunOne<>(ImmutableMap.of(
                         MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT,
@@ -401,12 +407,15 @@ public class BehaviorHippogryph {
                         Pair.of(new RunSometimes<>(new RandomStrollGround<EntityHippogryph>(0.9F, false) {
                             @Override
                             protected boolean checkExtraStartConditions(ServerLevel pLevel, PathfinderMob pOwner) {
-                                return !pOwner.getBrain().hasMemoryValue(MemoryModuleType.HOME) && super.checkExtraStartConditions(pLevel, pOwner);
+                                return !pOwner.getBrain().hasMemoryValue(MemoryModuleType.HOME) && super.checkExtraStartConditions(
+                                        pLevel,
+                                        pOwner
+                                );
                             }
                         }, UniformInt.of(1, 3)), 2),
                         Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 1.0f, 16), 2),
 //                        Pair.of(new RandomStrollAir<>(0.9F, false), 2),
-                        Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(30, 60)), 2),
+                        Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(3, 6)), 2),
                         Pair.of(new DoNothing(60, 120), 2)
 //                        Pair.of(new SetWalkTargetFromLookTarget(AxolotlAi::canSetWalkTargetFromLookTarget, AxolotlAi::getSpeedModifier, 3), 3),
 //                        Pair.of(new RunIf<>(Entity::isInWaterOrBubble, new DoNothing(30, 60)), 5),
@@ -427,6 +436,17 @@ public class BehaviorHippogryph {
      */
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getHuntPackage() {
         return ImmutableList.of(
+                // Random look
+                Pair.of(0,
+                        new RunOne<>(ImmutableMap.of(
+                                DragonMemoryModuleType.NEAREST_HUNTABLE, MemoryStatus.VALUE_ABSENT
+                        ), ImmutableList.of(
+                                Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 6.0F), 1),
+                                Pair.of(new LookAtPoi<>(30, 60), 2),
+                                Pair.of(new DoNothing(30, 60), 5)
+                        ))
+                ),
+
                 Pair.of(0, new StartAttacking<>(e -> {
                     return e.getBrain().hasMemoryValue(DragonMemoryModuleType.NEAREST_HUNTABLE);
                 }, mob -> {
@@ -434,7 +454,13 @@ public class BehaviorHippogryph {
                 })),
                 Pair.of(0, new StopAttackingIf<>(
                         mob -> {
-                            return false;
+                            return ImmutableSet.of(
+                                    MemoryModuleType.BREED_TARGET,
+                                    MemoryModuleType.TEMPTING_PLAYER,
+                                    MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM
+                            ).stream().anyMatch(memoryModuleType -> {
+                                return mob.getBrain().hasMemoryValue(memoryModuleType);
+                            });
                         },
                         mob -> {
                             return mob == null || !mob.isAlive();
@@ -442,14 +468,26 @@ public class BehaviorHippogryph {
                         hippogryph -> {
                             hippogryph.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
                             hippogryph.land();
-                            hippogryph.getBrain().updateActivityFromSchedule(hippogryph.level.getDayTime(), hippogryph.level.getGameTime());
+                            hippogryph.getBrain().updateActivityFromSchedule(hippogryph.level.getDayTime(),
+                                                                             hippogryph.level.getGameTime()
+                            );
                         }
                 )),
-                Pair.of(0,
-                        new RememberNextTargetOrSwap<>(hippogryph -> hippogryph.canMove(),
-                                                       BehaviorHippogryph::findNearestValidAttackTarget
-                        )
-                ),
+                Pair.of(0, new RunSometimes<>(new StopHuntingIf<>(
+                        hippogryph -> {
+                            hippogryph.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
+                            hippogryph.land();
+                            hippogryph.getBrain().updateActivityFromSchedule(hippogryph.level.getDayTime(),
+                                                                             hippogryph.level.getGameTime()
+                            );
+                        },
+                        200
+                ), UniformInt.of(0, 2))),
+//                Pair.of(0,
+//                        new RememberNextTargetOrSwap<>(hippogryph -> hippogryph.canMove(),
+//                                                       BehaviorHippogryph::findNearestValidAttackTarget
+//                        )
+//                ),
                 Pair.of(0, new SetWalkTargetFromAttackTargetIfTargetOutOfReach(1.0f)),
                 Pair.of(0, new MeleeAttack(0)),
 //                Pair.of(1, new RunOne<>(ImmutableList.of(
@@ -457,6 +495,31 @@ public class BehaviorHippogryph {
 //                        Pair.of(new OwnerHurtTarget<>(), 1),
 //                        Pair.of(new HurtByTarget<>(), 2)
 //                ))),
+
+                Pair.of(4, new RunOne<>(ImmutableMap.of(
+                        DragonMemoryModuleType.NEAREST_HUNTABLE, MemoryStatus.VALUE_ABSENT,
+                        MemoryModuleType.BREED_TARGET, MemoryStatus.VALUE_ABSENT,
+                        MemoryModuleType.TEMPTING_PLAYER, MemoryStatus.VALUE_ABSENT,
+                        MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, MemoryStatus.VALUE_ABSENT
+                ), ImmutableList.of(
+                        Pair.of(new RunSometimes<>(new RandomStrollGround<EntityHippogryph>(0.9F, false) {
+                            @Override
+                            protected boolean checkExtraStartConditions(ServerLevel pLevel, PathfinderMob pOwner) {
+                                return !pOwner.getBrain().hasMemoryValue(MemoryModuleType.HOME) && super.checkExtraStartConditions(
+                                        pLevel,
+                                        pOwner
+                                );
+                            }
+                        }, UniformInt.of(1, 3)), 2),
+                        Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 1.0f, 16), 2),
+//                        Pair.of(new RandomStrollAir<>(0.9F, false), 2),
+                        Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(30, 60)), 2),
+                        Pair.of(new DoNothing(60, 120), 2)
+//                        Pair.of(new SetWalkTargetFromLookTarget(AxolotlAi::canSetWalkTargetFromLookTarget, AxolotlAi::getSpeedModifier, 3), 3),
+//                        Pair.of(new RunIf<>(Entity::isInWaterOrBubble, new DoNothing(30, 60)), 5),
+//                        Pair.of(new RunIf<>(Entity::isOnGround, new DoNothing(200, 400)), 5))
+                ))),
+
                 Pair.of(1, new DoNothing(20, 60))
         );
     }

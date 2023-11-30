@@ -4,9 +4,12 @@ import com.github.alexthe666.iceandfire.entity.EntityHippogryph;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayDeque;
@@ -22,6 +25,13 @@ public class HippogryphHighJump<E extends EntityHippogryph & IBehaviorApplicable
     @Override
     protected boolean checkExtraStartConditions(ServerLevel pLevel, E pOwner) {
         return super.checkExtraStartConditions(pLevel, pOwner) && !pOwner.isTame();
+    }
+
+    @Override
+    protected boolean canStillUse(ServerLevel pLevel, E pEntity, long pGameTime) {
+        return ImmutableSet.of(MemoryModuleType.ATTACK_TARGET).stream().noneMatch((memoryModuleType) -> {
+            return pEntity.getBrain().hasMemoryValue(memoryModuleType);
+        }) && super.canStillUse(pLevel, pEntity, pGameTime);
     }
 
     @Override
