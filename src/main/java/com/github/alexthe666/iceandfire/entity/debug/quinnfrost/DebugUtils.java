@@ -2,6 +2,7 @@ package com.github.alexthe666.iceandfire.entity.debug.quinnfrost;
 
 import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
+import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageClientDraw;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageDebugEntity;
@@ -18,7 +19,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.player.Player;
@@ -306,21 +306,27 @@ public class DebugUtils {
         List<String> stringList = new ArrayList<>();
 
         try {
-            if (brain.hasMemoryValue(MemoryModuleType.WALK_TARGET)) {
-                brain.getMemory(MemoryModuleType.WALK_TARGET).ifPresent(target -> {
-                    stringList.add("WalkTarget: " + formatBlockPos(target.getTarget().currentBlockPosition()));
-                });
-            }
-            if (brain.hasMemoryValue(MemoryModuleType.ATTACK_TARGET)) {
-                brain.getMemory(MemoryModuleType.ATTACK_TARGET).ifPresent(target -> {
-                    stringList.add("AttackTarget: " + target.getName().getContents());
-                });
-            }
-            if (brain.hasMemoryValue(MemoryModuleType.LOOK_TARGET)) {
-                brain.getMemory(MemoryModuleType.LOOK_TARGET).ifPresent(iPosWrapper -> {
-                    stringList.add("LookTarget: " + formatBlockPos(iPosWrapper.currentBlockPosition()));
-                });
-            }
+            getMemoryItem(mob, DragonMemoryModuleType.NEAREST_HUNTABLE).ifPresent(livingEntity -> {
+                stringList.add("NearestHuntable: " + getEntityInfoShort(livingEntity, mob));
+            });
+            getMemoryItem(mob, MemoryModuleType.HAS_HUNTING_COOLDOWN).ifPresent(aBoolean -> {
+                stringList.add(String.format("HasHuntingCooldown: %s (%d)", aBoolean, mob.getBrain().getTimeUntilExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN)));
+            });
+//            if (brain.hasMemoryValue(MemoryModuleType.WALK_TARGET)) {
+//                brain.getMemory(MemoryModuleType.WALK_TARGET).ifPresent(target -> {
+//                    stringList.add("WalkTarget: " + formatBlockPos(target.getTarget().currentBlockPosition()));
+//                });
+//            }
+//            if (brain.hasMemoryValue(MemoryModuleType.ATTACK_TARGET)) {
+//                brain.getMemory(MemoryModuleType.ATTACK_TARGET).ifPresent(target -> {
+//                    stringList.add("AttackTarget: " + target.getName().getContents());
+//                });
+//            }
+//            if (brain.hasMemoryValue(MemoryModuleType.LOOK_TARGET)) {
+//                brain.getMemory(MemoryModuleType.LOOK_TARGET).ifPresent(iPosWrapper -> {
+//                    stringList.add("LookTarget: " + formatBlockPos(iPosWrapper.currentBlockPosition()));
+//                });
+//            }
 //            if (brain.hasMemoryValue(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES)) {
 //                brain.getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES).ifPresent(entityList -> {
 //                    stringList.add("VisibleMobs: " + entityList.);
@@ -342,37 +348,32 @@ public class DebugUtils {
     }
 
     public static List<String> getAttackTargetInfo(PathfinderMob mobEntity, Player player) {
-        LivingEntity targetEntity = getMemoryItem(mobEntity, MemoryModuleType.ATTACK_TARGET).orElse(mobEntity.getTarget());
+        LivingEntity targetEntity = getMemoryItem(mobEntity,
+                                                  MemoryModuleType.ATTACK_TARGET
+        ).orElse(mobEntity.getTarget());
 
-        return List.of(
-                "AttackTarget: " + (targetEntity == null ? "-" :
-                        String.format("%s [%s]/%d (%.1f/%s) [%d, %d, %d] (%.2f)",
-                                      targetEntity.getName().getString(),
-                                      targetEntity.getEncodeId(),
-                                      targetEntity.getId(),
-                                      targetEntity.getHealth(),
-                                      Objects.toString((targetEntity.getAttribute(
-                                              Attributes.MAX_HEALTH).getValue()), "-"),
-                                      targetEntity.blockPosition().getX(),
-                                      targetEntity.blockPosition().getY(),
-                                      targetEntity.blockPosition().getZ(),
-                                      mobEntity.position().distanceTo(targetEntity.position())
-                        )
-                )
-                // Todo: target attack and defence info here
-        );
+        List<String> stringList = new ArrayList<>();
+        stringList.add("AttackTarget: " + (targetEntity == null ? "-" :
+                getEntityInfoShort(targetEntity, mobEntity)
+        ));
+
+        // Todo: target attack and defence info here
+        return stringList;
     }
 
-    public static List<String> getEntityInfoShort(PathfinderMob mob, Player player) {
+    public static List<String> getEntityInfoShort(LivingEntity livingEntity, LivingEntity tracker) {
         return List.of(
-                String.format("%s \"%s\" [%s](%d) (%.1f/%.1f)",
-                              mob.getName().getString(),
-                              mob.getCustomName() == null ? "-" : mob.getCustomName(),
-                              mob.getEncodeId(),
-                              mob.getId(),
-                              mob.getHealth(),
-                              mob.getAttribute(
-                                      Attributes.MAX_HEALTH).getValue()
+                String.format("%s [%s]/%d (%.1f/%s) [%d, %d, %d] (%.2f)",
+                              livingEntity.getName().getString(),
+                              livingEntity.getEncodeId(),
+                              livingEntity.getId(),
+                              livingEntity.getHealth(),
+                              Objects.toString((livingEntity.getAttribute(
+                                      Attributes.MAX_HEALTH).getValue()), "-"),
+                              livingEntity.blockPosition().getX(),
+                              livingEntity.blockPosition().getY(),
+                              livingEntity.blockPosition().getZ(),
+                              livingEntity.position().distanceTo(tracker.position())
                 )
         );
     }
@@ -411,6 +412,7 @@ public class DebugUtils {
         list.addAll(getTravelInfo(mobEntity, player));
         list.addAll(getGoalInfo(mobEntity, player));
         list.addAll(getTaskInfo(mobEntity, player));
+        list.addAll(getMemoryInfo(mobEntity, player));
         list.addAll(getAttributeInfo(mobEntity, player));
         list.addAll(getAttackTargetInfo(mobEntity, player));
         list.addAll(getDestinationInfo(mobEntity, player));
