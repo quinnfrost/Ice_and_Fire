@@ -5,13 +5,16 @@ import com.mojang.blaze3d.vertex.*;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Matrix4f;
+import com.mojang.math.Quaternion;
 import com.mojang.math.Vector3f;
+import com.mojang.math.Vector4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.*;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec2;
@@ -84,6 +87,46 @@ public class OverlayCrossHair extends GuiComponent {
                 }
             }
         }
+    }
+
+    public static Vec2 map3DSpaceToScreenSpace(Vec3 position) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Camera camera = minecraft.gameRenderer.getMainCamera();
+        double fov = minecraft.options.fov;
+
+        int scaledWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
+        int scaledHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
+
+        Matrix4f projectionMatrix = minecraft.gameRenderer.getProjectionMatrix(minecraft.options.fov);
+        Matrix4f modelViewMatrix = RenderSystem.getModelViewMatrix();
+
+        Matrix4f matrix4f = new PoseStack().last().pose();
+
+        Vector3f relative = new Vector3f(position.subtract(camera.getPosition()));
+
+        relative.mul((float) Math.sin(Math.toRadians(camera.getYRot() % 360)), 1F, (float) Math.cos(Math.toRadians(camera.getYRot() % 360)));
+        relative.mul(1F, (float) Math.sin(Math.toRadians(camera.getXRot() % 360)), (float) Math.cos(Math.toRadians(camera.getXRot() % 360)));
+
+        Vec2 vec2 = new Vec2(
+                (relative.x() / relative.z()) + .5f * scaledWidth + 0,
+                (relative.y() / relative.z()) + .5f * scaledHeight + 0
+        );
+
+//        Quaternion quaternion = Quaternion.fromXYZ((float) position.x, (float) position.y, (float) position.z);
+//        Vector4f vector4f = new Vector4f(relative);
+//
+//        vector4f.transform(modelViewMatrix);
+//        vector4f.transform(projectionMatrix);
+//
+//        vector4f.perspectiveDivide();
+//
+//        Vec2 vec2 = new Vec2(
+//                (vector4f.x() ) * .5f * scaledWidth + 0,
+//                (vector4f.y() ) * .5f * scaledHeight + 0
+//            );
+
+        return vec2;
+
     }
 
     /**
@@ -185,9 +228,16 @@ public class OverlayCrossHair extends GuiComponent {
         final float suggestionWidth = 40;
         float suggestPos = (float) (0.4058604333 * Math.pow(40, 1.395441973));
 
-
         int scaledWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int scaledHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
+
+
+//        Vec3 testPos = new Vec3(0, 0, 0);
+//        Vec2 testScreenPos = map3DSpaceToScreenSpace(testPos);
+
+//        if (Minecraft.getInstance().player != null) {
+//            Minecraft.getInstance().player.displayClientMessage(new TextComponent(String.format("X: %.1f, Y: %.1f", testScreenPos.x, testScreenPos.y)), true);
+//        }
 
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         PoseStack posestack = RenderSystem.getModelViewStack();
@@ -209,6 +259,16 @@ public class OverlayCrossHair extends GuiComponent {
 
         RenderSystem.lineWidth(2.0F);
         bufferbuilder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+
+//        bufferbuilder.vertex(0d, 0d, 0d)
+//                .color(255, 0, 0, 255)
+//                .normal(1.0F, 0.0F, 0.0F)
+//                .endVertex();
+//
+//        bufferbuilder.vertex(testScreenPos.x, testScreenPos.y, 0)
+//                .color(255, 0, 0, 255)
+//                .normal(1.0F, 1.0F, 0.0F)
+//                .endVertex();
 
         bufferbuilder
                 .vertex(0.0D, 0.0D, 0.0D)
