@@ -398,6 +398,7 @@ public class BehaviorHippogryph {
                 }),
                 Pair.of(3, new RunSometimes<>(new HippogryphRandomHunt<>(), UniformInt.of(0, 6))),
                 // Random stroll
+                // Entry condition is treated like canUse()
                 Pair.of(4, new RunOne<>(ImmutableMap.of(
                         MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT,
                         MemoryModuleType.BREED_TARGET, MemoryStatus.VALUE_ABSENT,
@@ -526,7 +527,7 @@ public class BehaviorHippogryph {
 
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getEscortPackage() {
         return ImmutableList.of(
-                Pair.of(0, new FollowAlong<>(4)),
+                Pair.of(0, new FollowAside<>(10)),
                 Pair.of(0, new StartAttacking<>(BehaviorHippogryph::findNearestValidAttackTarget))
         );
     }

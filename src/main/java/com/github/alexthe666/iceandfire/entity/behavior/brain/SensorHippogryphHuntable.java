@@ -53,7 +53,7 @@ public class SensorHippogryphHuntable extends NearestVisibleLivingEntitySensor {
             return false;
         }
         if (pTarget != null && !pTarget.getClass().equals(hippogryph.getClass())) {
-            if (hippogryph.getBbWidth() >= pTarget.getBbWidth() && hippogryph.getBbHeight() >= pTarget.getBbHeight()) {
+            if (hippogryph.getBbWidth() > pTarget.getBbWidth() && hippogryph.getBbHeight() > pTarget.getBbHeight()) {
                 if (pTarget instanceof Player) {
                     return !hippogryph.isTame();
                 } else {

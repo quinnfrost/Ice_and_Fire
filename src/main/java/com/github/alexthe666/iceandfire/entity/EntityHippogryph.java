@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -183,6 +184,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         brain.setCoreActivities(ImmutableSet.of(Activity.CORE));
         brain.setDefaultActivity(Activity.IDLE);
         brain.useDefaultActivity();
+        brain.setSchedule(Schedule.EMPTY);
     }
 
     protected void customServerAiStep() {
@@ -240,6 +242,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                 }
                 if (!this.isOverAirLogic()) {
                     this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
+                    this.setDeltaMovement(this.getDeltaMovement().with(Direction.Axis.X, 0).with(Direction.Axis.Z, 0));
                 }
                 break;
         }
@@ -768,7 +771,8 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                     switch (command) {
                         // Wander
                         case 0 -> {
-                            commandMsg = "wander";
+                            // TODO: maybe rename to wander
+                            commandMsg = "stand";
                         }
                         // Sit
                         case 1 -> {
@@ -780,7 +784,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                         }
                         default -> {
                             command = 0;
-                            commandMsg = "wander";
+                            commandMsg = "stand";
                         }
                     }
                     this.setCommand(command);

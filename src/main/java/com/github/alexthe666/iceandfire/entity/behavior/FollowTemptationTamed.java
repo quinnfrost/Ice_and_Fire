@@ -52,10 +52,10 @@ public class FollowTemptationTamed extends FollowTemptation {
     }
 
     private boolean checkShouldFollow(PathfinderMob pEntity) {
-        // Theoretically, this should be put in the entryCondition, but FollowTemptation does not allow us to customize that
-//        if (pEntity.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM).isPresent()) {
-//            return false;
-//        }
+        // Entry condition is not checked during running
+        if (pEntity.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM).isPresent()) {
+            return false;
+        }
         if (pEntity instanceof TamableAnimal tamableAnimal && tamableAnimal.isTame()) {
             return false;
 //            Optional<Player> charmer = tamableAnimal.getBrain().getMemory(

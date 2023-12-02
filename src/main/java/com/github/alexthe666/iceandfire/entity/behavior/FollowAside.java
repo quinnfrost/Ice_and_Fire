@@ -14,8 +14,8 @@ import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
-public class FollowAlong<E extends TamableAnimal & IBehaviorApplicable> extends FlightFollowing<E>{
-    public FollowAlong(int updateInterval) {
+public class FollowAside<E extends TamableAnimal & IBehaviorApplicable> extends FlightFollowing<E>{
+    public FollowAside(int updateInterval) {
         super(ImmutableMap.of(
                 DragonMemoryModuleType.LAST_OWNER_HURT_BY_TARGET, MemoryStatus.VALUE_ABSENT,
                 DragonMemoryModuleType.LAST_OWNER_HURT_TARGET, MemoryStatus.VALUE_ABSENT,
