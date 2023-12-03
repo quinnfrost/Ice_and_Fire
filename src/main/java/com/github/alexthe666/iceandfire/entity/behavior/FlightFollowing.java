@@ -11,6 +11,7 @@ import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
+import java.util.function.Function;
 
 public abstract class FlightFollowing<E extends Mob & IBehaviorApplicable> extends Behavior<E> {
     public static Vec3 debug;
@@ -18,16 +19,20 @@ public abstract class FlightFollowing<E extends Mob & IBehaviorApplicable> exten
     protected int nextPosUpdateInterval;
     protected Vec3 followCenter;
     protected Vec3 nextPosition;
+    protected Function<E, Float> speedSupplier;
 
-    public FlightFollowing(Map<MemoryModuleType<?>, MemoryStatus> pEntryCondition, int nextPosUpdateInterval) {
+    public FlightFollowing(Map<MemoryModuleType<?>, MemoryStatus> pEntryCondition, int nextPosUpdateInterval, Function<E, Float> pSpeedSupplier) {
         super(pEntryCondition);
         this.nextPosUpdateInterval = nextPosUpdateInterval;
+        this.speedSupplier = pSpeedSupplier;
     }
     public FlightFollowing(int nextPosUpdateInterval) {
-        this(ImmutableMap.of(), nextPosUpdateInterval);
+        this(ImmutableMap.of(), nextPosUpdateInterval, (entity) -> {
+            return 1.2f;
+        });
     }
     public FlightFollowing() {
-        this(ImmutableMap.of(), 1);
+        this(1);
     }
 
     protected abstract Vec3 getCenter(ServerLevel pLevel, E pEntity, long pGameTime);
@@ -52,7 +57,7 @@ public abstract class FlightFollowing<E extends Mob & IBehaviorApplicable> exten
         this.nextPosition = this.getNextPosition(pOwner, this.followCenter, 5);
         if (this.nextPosition != null) {
             debug = this.nextPosition;
-            pOwner.getBrain().setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(this.nextPosition, 1.5f, 0));
+            pOwner.getBrain().setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(this.nextPosition, speedSupplier.apply(pOwner), 0));
         }
     }
 

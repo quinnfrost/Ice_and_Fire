@@ -24,7 +24,7 @@ public class HippogryphHighJump<E extends EntityHippogryph & IBehaviorApplicable
 
     @Override
     protected boolean checkExtraStartConditions(ServerLevel pLevel, E pOwner) {
-        return super.checkExtraStartConditions(pLevel, pOwner) && !pOwner.isTame();
+        return super.checkExtraStartConditions(pLevel, pOwner);
     }
 
     @Override

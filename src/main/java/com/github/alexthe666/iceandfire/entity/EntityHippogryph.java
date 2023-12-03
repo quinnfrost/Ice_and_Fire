@@ -1228,7 +1228,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         return movingobjectposition == null || movingobjectposition.getType() != HitResult.Type.BLOCK;
     }
 
-    public final boolean DISABLE_MOVEMENT_CHECK = true;
+    public final boolean DISABLE_MOVEMENT_CHECK = false;
     @Override
     public void travel(@NotNull Vec3 pTravelVector) {
         if (!this.canMove() && !this.isVehicle()) {

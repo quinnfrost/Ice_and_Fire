@@ -20,7 +20,9 @@ public class FollowAside<E extends TamableAnimal & IBehaviorApplicable> extends 
                 DragonMemoryModuleType.LAST_OWNER_HURT_BY_TARGET, MemoryStatus.VALUE_ABSENT,
                 DragonMemoryModuleType.LAST_OWNER_HURT_TARGET, MemoryStatus.VALUE_ABSENT,
                 MemoryModuleType.HURT_BY_ENTITY, MemoryStatus.VALUE_ABSENT
-        ), updateInterval);
+        ), updateInterval, (entity) -> {
+            return 1.5f;
+        });
     }
 
     @Override

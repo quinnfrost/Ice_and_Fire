@@ -384,8 +384,8 @@ public class BehaviorHippogryph {
                                 Pair.of(new HippogryphGoEat<>(entityHippogryph -> {
                                     return !entityHippogryph.isTame();
                                 }, 1.0f, true, 18), 1),
-                                Pair.of(new FollowTemptationTamed(), 1),
-                                Pair.of(new FollowAdultTamed<>(), 1)
+                                Pair.of(new FollowTemptationTamed(), 1)
+//                                Pair.of(new FollowAdultTamed<>(), 1)
                         )
                 )),
                 // Start attacking, find water
@@ -396,7 +396,7 @@ public class BehaviorHippogryph {
 //                        pEntity.getBrain().setActiveActivityIfPossible(Activity.FIGHT);
                     }
                 }),
-                Pair.of(3, new RunSometimes<>(new HippogryphRandomHunt<>(), UniformInt.of(0, 6))),
+                Pair.of(3, new RunSometimes<>(new RandomHunt<>(), UniformInt.of(0, 6))),
                 // Random stroll
                 // Entry condition is treated like canUse()
                 Pair.of(4, new RunOne<>(ImmutableMap.of(
@@ -527,7 +527,7 @@ public class BehaviorHippogryph {
 
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getEscortPackage() {
         return ImmutableList.of(
-                Pair.of(0, new FollowAside<>(10)),
+                Pair.of(0, new FollowAlong<>(10)),
                 Pair.of(0, new StartAttacking<>(BehaviorHippogryph::findNearestValidAttackTarget))
         );
     }
