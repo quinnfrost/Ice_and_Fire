@@ -502,9 +502,9 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
      */
     @Override
     public boolean wantsToAttack(@NotNull LivingEntity targetAssignedByOwner, @NotNull LivingEntity pOwner) {
-        if (targetAssignedByOwner instanceof TamableAnimal tamed && tamed.isTame() && tamed.getOwner().equals(pOwner)) {
+        if (targetAssignedByOwner instanceof TamableAnimal tamed && tamed.getOwner() != null && tamed.getOwner().equals(pOwner)) {
             return false;
-        } else if (targetAssignedByOwner instanceof AbstractHorse horse && horse.isTamed() && horse.getOwnerUUID().equals(this.getOwnerUUID())) {
+        } else if (targetAssignedByOwner instanceof AbstractHorse horse && horse.getOwnerUUID() != null && horse.getOwnerUUID().equals(this.getOwnerUUID())) {
             return false;
         } else if (targetAssignedByOwner instanceof Player playerVictim && pOwner instanceof Player playerOwner && !playerOwner.canHarmPlayer(playerVictim)) {
             return false;

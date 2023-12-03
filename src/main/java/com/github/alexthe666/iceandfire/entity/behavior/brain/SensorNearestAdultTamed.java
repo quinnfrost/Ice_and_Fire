@@ -29,6 +29,7 @@ public class SensorNearestAdultTamed extends Sensor<TamableAnimal> {
                     && !livingEntity.isBaby()
                     && (!tamed.isTame()
                     || (livingEntity instanceof TamableAnimal tamedAdult
+                    && tamed.getOwner() != null
                     && tamed.getOwner().equals(tamedAdult.getOwner())));
         }).map(AgeableMob.class::cast);
         tamed.getBrain().setMemory(MemoryModuleType.NEAREST_VISIBLE_ADULT, optional);
