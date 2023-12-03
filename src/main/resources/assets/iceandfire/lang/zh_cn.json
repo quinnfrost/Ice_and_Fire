@@ -639,6 +639,7 @@
   "dragon.command.remove_home": "这条龙不再将之前的坐标认定为家了。",
   "hippogryph.command.sit": "这匹骏鹰坐下休息。",
   "hippogryph.command.stand": "这匹骏鹰起身活动。",
+  "hippogryph.command.follow": "这匹骏鹰跟随着你。",
   "hippogryph.command.new_home": "这匹骏鹰已将坐标%d, %d, %d处认定为自己的家。",
   "hippogryph.command.remove_home": "这匹骏鹰不再将之前的坐标认定为家了。",
   "cockatrice.command.0": "这条鸡蛇起身活动。",

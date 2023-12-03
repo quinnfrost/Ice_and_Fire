@@ -7,6 +7,7 @@ import com.github.alexthe666.iceandfire.entity.IafEntityRegistry;
 import com.github.alexthe666.iceandfire.entity.IafVillagerRegistry;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageClientDisplay;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageCommandEntity;
+import com.github.alexthe666.iceandfire.entity.behavior.BehaviorRegistry;
 import com.github.alexthe666.iceandfire.entity.tile.IafTileEntityRegistry;
 import com.github.alexthe666.iceandfire.inventory.IafContainerRegistry;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
@@ -123,6 +124,8 @@ public class IceAndFire {
         IafContainerRegistry.CONTAINERS.register(modBus);
         IafRecipeSerializers.SERIALIZERS.register(modBus);
         IafProcessors.PROCESSORS.register(modBus);
+
+        BehaviorRegistry.registerCustomBehaviors(modBus);
 
         IafVillagerRegistry.POI_TYPES.register(modBus);
         IafVillagerRegistry.PROFESSIONS.register(modBus);

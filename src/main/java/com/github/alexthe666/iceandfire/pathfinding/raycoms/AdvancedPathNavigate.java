@@ -21,6 +21,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -47,12 +48,12 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
     public static final double MIN_SPEED_ALLOWED = 0.1;
 
     @Nullable
-    private PathResult<AbstractPathJob> pathResult;
+    public PathResult<AbstractPathJob> pathResult;
 
     /**
      * The world time when a path was added.
      */
-    private long pathStartTime = 0;
+    public long pathStartTime = 0;
 
     /**
      * Spawn pos of minecart.
@@ -250,6 +251,8 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
         return (pathResult == null || pathResult.isFinished() && pathResult.getStatus() != PathFindingStatus.CALCULATION_COMPLETE) && super.isDone();
     }
 
+    public long lastPathComputeCompleteTimestamp = 0;
+    public long lastPathFollowCompleteTimestamp = 0;
     @Override
     public void tick() {
         if (nodeEvaluator instanceof NodeProcessorWalk) {
@@ -271,6 +274,7 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
             {
                 try {
                     processCompletedCalculationResult();
+                    lastPathComputeCompleteTimestamp = level.getGameTime();
                 } catch (InterruptedException | ExecutionException e) {
                     IceAndFire.LOGGER.catching(e);
                 }
@@ -311,6 +315,7 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
             DebugPackets.sendPathFindingPacket(this.level, this.mob, this.path, this.maxDistanceToWaypoint);
             if (!this.isDone()) {
                 Vec3 vector3d2 = this.path.getNextEntityPos(this.mob);
+//                Vec3 vector3d2 = getNextEntityPos(this.mob);
                 BlockPos blockpos = new BlockPos(vector3d2);
                 if (isEntityBlockLoaded(this.level, blockpos)) {
                     this.mob.getMoveControl()
@@ -344,6 +349,17 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
         }
 
         stuckHandler.checkStuck(this);
+    }
+
+    public static Vec3 getNextEntityPos(Mob mob) {
+        PathNavigation navigation = mob.getNavigation();
+        Node node = navigation.getPath().getNode(navigation.getPath().getNextNodeIndex());
+        double d0 = (double)node.x + (double)((int)(mob.getBbWidth() + 1.0F)) * 0.5D;
+//        double d0 = (double)node.x + 0.5d;
+        double d1 = (double)node.y;
+        double d2 = (double)node.z + (double)((int)(mob.getBbWidth() + 1.0F)) * 0.5D;
+//        double d2 = (double)node.z + 0.5d;
+        return new Vec3(d0, d1, d2);
     }
 
     /**
@@ -380,7 +396,7 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
             return pathResult;
         }
 
-        final BlockPos start = AbstractPathJob.prepareStart(ourEntity);
+        final BlockPos start = getPathingOptions().isFlying() ? ourEntity.blockPosition() : AbstractPathJob.prepareStart(ourEntity);
         desiredPos = new BlockPos(newX, newY, newZ);
 
         return setPathJob(
@@ -799,6 +815,7 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
      */
     private void onPathFinish() {
         stop();
+        lastPathFollowCompleteTimestamp = level.getGameTime();
     }
 
     @Override
