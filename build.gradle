@@ -181,3 +181,32 @@ publishing {
         }
     }
 }
+
+task uploadOutput(type: Exec) {
+    dependsOn jar
+
+    doFirst {
+//        def mavenArtifact = project.tasks.findByName('publishing').publications.findByName('mavenJava').artifact
+//        def mavenFilename = "${mavenArtifact.artifactId}-${mavenArtifact.version}.${mavenArtifact.extension}"
+        println "${project.projectDir}\\build\\libs\\${jar.archiveFileName.get()} 'mc:~/18-minecraft-common/mods'"
+    }
+
+//    commandLine 'hostname'
+    commandLine 'scp', "${project.projectDir}\\build\\libs\\${jar.archiveFileName.get()}", 'mc:~/18-minecraft-common/mods'
+
+    // Use different commands for different operating systems
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        commandLine 'cmd', '/c', 'start', "${project.projectDir}\\build\\libs"
+    } else if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+        commandLine 'open', "${project.projectDir}/build/libs"
+    } 
+    // else if (System.getProperty('os.name').toLowerCase().contains('nix') || 
+    //             System.getProperty('os.name').toLowerCase().contains('nux') || 
+    //             System.getProperty('os.name').toLowerCase().contains('mac')) {
+    //     commandLine 'xdg-open', "${project.projectDir}/build/libs"
+    // }
+
+    doLast {
+//        println "Upload complete."
+    }
+}
