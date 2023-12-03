@@ -5,13 +5,16 @@ import com.mojang.blaze3d.vertex.*;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Matrix4f;
+import com.mojang.math.Quaternion;
 import com.mojang.math.Vector3f;
+import com.mojang.math.Vector4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.*;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec2;
@@ -28,7 +31,7 @@ import java.util.Map;
 
 @OnlyIn(Dist.CLIENT)
 public class OverlayCrossHair extends GuiComponent {
-//    public static ResourceLocation markTexture = new ResourceLocation("dragontongue", "textures/gui/mark.png");
+    //    public static ResourceLocation markTexture = new ResourceLocation("dragontongue", "textures/gui/mark.png");
 //    public static ResourceLocation scopeTexture = new ResourceLocation("dragontongue", "textures/misc/scope.png");
     public static boolean renderScope = false;
     public static float scopeSuggestion = 0;
@@ -86,6 +89,46 @@ public class OverlayCrossHair extends GuiComponent {
         }
     }
 
+    public static Vec2 map3DSpaceToScreenSpace(Vec3 position) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Camera camera = minecraft.gameRenderer.getMainCamera();
+        double fov = minecraft.options.fov;
+
+        int scaledWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
+        int scaledHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
+
+        Matrix4f projectionMatrix = minecraft.gameRenderer.getProjectionMatrix(minecraft.options.fov);
+        Matrix4f modelViewMatrix = RenderSystem.getModelViewMatrix();
+
+        Matrix4f matrix4f = new PoseStack().last().pose();
+
+        Vector3f relative = new Vector3f(position.subtract(camera.getPosition()));
+
+        relative.mul((float) Math.sin(Math.toRadians(camera.getYRot() % 360)), 1F, (float) Math.cos(Math.toRadians(camera.getYRot() % 360)));
+        relative.mul(1F, (float) Math.sin(Math.toRadians(camera.getXRot() % 360)), (float) Math.cos(Math.toRadians(camera.getXRot() % 360)));
+
+        Vec2 vec2 = new Vec2(
+                (relative.x() / relative.z()) + .5f * scaledWidth + 0,
+                (relative.y() / relative.z()) + .5f * scaledHeight + 0
+        );
+
+//        Quaternion quaternion = Quaternion.fromXYZ((float) position.x, (float) position.y, (float) position.z);
+//        Vector4f vector4f = new Vector4f(relative);
+//
+//        vector4f.transform(modelViewMatrix);
+//        vector4f.transform(projectionMatrix);
+//
+//        vector4f.perspectiveDivide();
+//
+//        Vec2 vec2 = new Vec2(
+//                (vector4f.x() ) * .5f * scaledWidth + 0,
+//                (vector4f.y() ) * .5f * scaledHeight + 0
+//            );
+
+        return vec2;
+
+    }
+
     /**
      * Set cross-hair display
      *
@@ -104,7 +147,9 @@ public class OverlayCrossHair extends GuiComponent {
         synchronized (lock) {
             if (string != null) {
 
-                if (!force && string.equals(bufferStringMap.getOrDefault(offsetFromCrosshair, Pair.of(0, null)).getSecond())) {
+                if (!force && string.equals(bufferStringMap.getOrDefault(offsetFromCrosshair,
+                                                                         Pair.of(0, null)
+                ).getSecond())) {
                     return;
                 }
                 if (!string.isEmpty() && stringTime != 0) {
@@ -153,7 +198,12 @@ public class OverlayCrossHair extends GuiComponent {
         synchronized (lock) {
             if (!bufferStringMap.isEmpty()) {
                 bufferStringMap.forEach((Vec2, integerStringPair) -> {
-                    fontRender.draw(ms, integerStringPair.getSecond(), scaledWidth / 2.0f + Vec2.x, scaledHeight / 2.0f + Vec2.y, colour.getRGB());
+                    fontRender.draw(ms,
+                                    integerStringPair.getSecond(),
+                                    scaledWidth / 2.0f + Vec2.x,
+                                    scaledHeight / 2.0f + Vec2.y,
+                                    colour.getRGB()
+                    );
                 });
             }
         }
@@ -174,47 +224,96 @@ public class OverlayCrossHair extends GuiComponent {
 //    }
 
     public static void renderScopeSuggestionQuad(PoseStack poseStack) {
-        if (!renderScope) {
-            return;
-        }
-
         final int lineWidth = 1;
         final float suggestionWidth = 40;
-        float suggestPos = (float) (0.4058604333 * Math.pow(scopeSuggestion, 1.395441973));
-
+        float suggestPos = (float) (0.4058604333 * Math.pow(40, 1.395441973));
 
         int scaledWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int scaledHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
 
 
-//        MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
-//        VertexConsumer bufferbuilder = buffer.getBuffer(MRenderTypes.customLineRenderer());
-//        poseStack.pushPose();
-//        RenderSystem.disableDepthTest();
-        RenderSystem.disableCull();
+//        Vec3 testPos = new Vec3(0, 0, 0);
+//        Vec2 testScreenPos = map3DSpaceToScreenSpace(testPos);
 
-        Matrix4f pMatrix = poseStack.last().pose();
+//        if (Minecraft.getInstance().player != null) {
+//            Minecraft.getInstance().player.displayClientMessage(new TextComponent(String.format("X: %.1f, Y: %.1f", testScreenPos.x, testScreenPos.y)), true);
+//        }
 
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        BufferBuilder bufferbuilder = Tesselator.getInstance().getBuilder();
+        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        PoseStack posestack = RenderSystem.getModelViewStack();
+        posestack.pushPose();
+        posestack.translate((double) (scaledWidth / 2), (double) (scaledHeight / 2), (double) 0);
+        posestack.mulPose(Vector3f.XN.rotationDegrees(camera.getXRot()));
+        posestack.mulPose(Vector3f.YP.rotationDegrees(camera.getYRot()));
+        posestack.scale(-1.0F, -1.0F, -1.0F);
+        RenderSystem.applyModelViewMatrix();
 
-        bufferbuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        bufferbuilder.vertex(pMatrix, 0.5f + scaledWidth / 2f + suggestionWidth / 2, 0.5f + scaledHeight / 2f + suggestPos, 0).color(0, 0, 0, 255).endVertex();
-        bufferbuilder.vertex(pMatrix, 0.5f + scaledWidth / 2f - suggestionWidth / 2, 0.5f + scaledHeight / 2f + suggestPos, 0).color(0, 0, 0, 255).endVertex();
+        double pLineLength = 10;
 
-        bufferbuilder.vertex(pMatrix, 0.5f + scaledWidth / 2f - suggestionWidth / 2, 0.5f + scaledHeight / 2f + suggestPos + lineWidth, 0).color(0, 0, 0, 255).endVertex();
-        bufferbuilder.vertex(pMatrix, 0.5f + scaledWidth / 2f + suggestionWidth / 2, 0.5f + scaledHeight / 2f + suggestPos + lineWidth, 0).color(0, 0, 0, 255).endVertex();
+        GlStateManager._disableTexture();
+        GlStateManager._depthMask(false);
+        GlStateManager._disableCull();
+        RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+        Tesselator tesselator = RenderSystem.renderThreadTesselator();
+        BufferBuilder bufferbuilder = tesselator.getBuilder();
 
-        bufferbuilder.vertex(pMatrix, scaledWidth / 2f + suggestionWidth / 2, scaledHeight / 2f + suggestPos, 0).color(255, 255, 255, 255).endVertex();
-        bufferbuilder.vertex(pMatrix, scaledWidth / 2f - suggestionWidth / 2, scaledHeight / 2f + suggestPos, 0).color(255, 255, 255, 255).endVertex();
+        RenderSystem.lineWidth(2.0F);
+        bufferbuilder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-        bufferbuilder.vertex(pMatrix, scaledWidth / 2f - suggestionWidth / 2, scaledHeight / 2f + suggestPos + lineWidth, 0).color(255, 255, 255, 255).endVertex();
-        bufferbuilder.vertex(pMatrix, scaledWidth / 2f + suggestionWidth / 2, scaledHeight / 2f + suggestPos + lineWidth, 0).color(255, 255, 255, 255).endVertex();
+//        bufferbuilder.vertex(0d, 0d, 0d)
+//                .color(255, 0, 0, 255)
+//                .normal(1.0F, 0.0F, 0.0F)
+//                .endVertex();
+//
+//        bufferbuilder.vertex(testScreenPos.x, testScreenPos.y, 0)
+//                .color(255, 0, 0, 255)
+//                .normal(1.0F, 1.0F, 0.0F)
+//                .endVertex();
 
-        bufferbuilder.end();
-        BufferUploader.end(bufferbuilder);
+        bufferbuilder
+                .vertex(0.0D, 0.0D, 0.0D)
+                .color(255, 0, 0, 255)
+                .normal(1.0F, 0.0F, 0.0F)
+                .endVertex();
+        bufferbuilder
+                .vertex((double) pLineLength, 0.0D, 0.0D)
+                .color(255, 0, 0, 255)
+                .normal(1.0F,
+                        0.0F,
+                        0.0F
+                ).endVertex();
 
-        RenderSystem.enableCull();
+        bufferbuilder
+                .vertex(0.0D, 0.0D, 0.0D)
+                .color(0, 255, 0, 255)
+                .normal(0.0F, 1.0F, 0.0F)
+                .endVertex();
+        bufferbuilder
+                .vertex(0.0D, (double) pLineLength, 0.0D)
+                .color(0, 255, 0, 255)
+                .normal(0.0F,
+                        1.0F,
+                        0.0F
+                ).endVertex();
+
+        bufferbuilder
+                .vertex(0.0D, 0.0D, 0.0D)
+                .color(127, 127, 255, 255)
+                .normal(0.0F, 0.0F, 1.0F)
+                .endVertex();
+        bufferbuilder
+                .vertex(0.0D, 0.0D, (double) pLineLength)
+                .color(127, 127, 255, 255)
+                .normal(0.0F,
+                        0.0F,
+                        1.0F
+                ).endVertex();
+
+        tesselator.end();
+
+        posestack.popPose();
+        RenderSystem.applyModelViewMatrix();
+
 
     }
 
@@ -239,12 +338,12 @@ public class OverlayCrossHair extends GuiComponent {
         PoseStack.Pose pose = ms.last();
         vertexconsumer.vertex(scaledWidth / 2f - suggestionWidth / 2, scaledHeight / 2f + suggestPos, 0)
                 .color(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha())
-                .normal(1.0f,0.0f,0.0f)
+                .normal(1.0f, 0.0f, 0.0f)
                 .endVertex();
 
         vertexconsumer.vertex(scaledWidth / 2f + suggestionWidth / 2, scaledHeight / 2f + suggestPos, 0)
                 .color(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha())
-                .normal(1.0f,0.0f,0.0f)
+                .normal(1.0f, 0.0f, 0.0f)
                 .endVertex();
 
         pBufferSource.endBatch(RenderType.lines());
