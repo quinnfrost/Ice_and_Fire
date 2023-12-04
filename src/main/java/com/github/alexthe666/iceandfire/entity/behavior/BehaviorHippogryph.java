@@ -269,6 +269,43 @@ public class BehaviorHippogryph {
         return Ingredient.of(Items.RABBIT_FOOT);
     }
 
+    public static RunOne<EntityHippogryph> getIdleLookBehavior() {
+        return new RunOne<>(ImmutableMap.of(
+                MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.BREED_TARGET, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.TEMPTING_PLAYER, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, MemoryStatus.VALUE_ABSENT
+        ), ImmutableList.of(
+                Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 6.0F), 1),
+                Pair.of(new LookAtPoi<>(30, 60), 1),
+                Pair.of(new DoNothing(30, 60), 5)
+        ));
+    }
+
+    public static RunOne<EntityHippogryph> getIdleWalkBehavior() {
+        return new RunOne<>(ImmutableMap.of(
+                MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.BREED_TARGET, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.TEMPTING_PLAYER, MemoryStatus.VALUE_ABSENT,
+                MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, MemoryStatus.VALUE_ABSENT
+        ), ImmutableList.of(
+                Pair.of(new RandomStrollGround<EntityHippogryph>(0.9F, false) {
+                    @Override
+                    protected boolean checkExtraStartConditions(ServerLevel pLevel, PathfinderMob pOwner) {
+                        return !pOwner.getBrain().hasMemoryValue(MemoryModuleType.HOME)
+                                && super.checkExtraStartConditions(pLevel, pOwner);
+                    }
+                }, 2),
+                Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 1.0f, 16), 2),
+//                        Pair.of(new RandomStrollAir<>(0.9F, false), 2),
+                Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(3, 6)), 1),
+                Pair.of(new DoNothing(60, 120), 5)
+//                        Pair.of(new SetWalkTargetFromLookTarget(AxolotlAi::canSetWalkTargetFromLookTarget, AxolotlAi::getSpeedModifier, 3), 3),
+//                        Pair.of(new RunIf<>(Entity::isInWaterOrBubble, new DoNothing(30, 60)), 5),
+//                        Pair.of(new RunIf<>(Entity::isOnGround, new DoNothing(200, 400)), 5))
+        ));
+    }
+
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getCorePackage() {
         return ImmutableList.of(
                 Pair.of(1, new Swim(0.8f)),
@@ -367,11 +404,7 @@ public class BehaviorHippogryph {
     public static ImmutableList<Pair<Integer, ? extends Behavior<? super EntityHippogryph>>> getWanderPackage() {
         return ImmutableList.of(
                 // Random look
-                Pair.of(0, new RunOne<>(ImmutableMap.of(), ImmutableList.of(
-                        Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 6.0F), 1),
-                        Pair.of(new LookAtPoi<>(30, 60), 2),
-                        Pair.of(new DoNothing(30, 60), 5)
-                ))),
+                Pair.of(0, getIdleLookBehavior()),
                 // Breed
                 Pair.of(1, new AnimalMakeLove(IafEntityRegistry.HIPPOGRYPH.get(), 0.6F)),
                 // Follow temptation
@@ -399,29 +432,7 @@ public class BehaviorHippogryph {
                 Pair.of(3, new RunSometimes<>(new RandomHunt<>(), UniformInt.of(0, 6))),
                 // Random stroll
                 // Entry condition is treated like canUse()
-                Pair.of(4, new RunOne<>(ImmutableMap.of(
-                        MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT,
-                        MemoryModuleType.BREED_TARGET, MemoryStatus.VALUE_ABSENT,
-                        MemoryModuleType.TEMPTING_PLAYER, MemoryStatus.VALUE_ABSENT,
-                        MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, MemoryStatus.VALUE_ABSENT
-                ), ImmutableList.of(
-                        Pair.of(new RunSometimes<>(new RandomStrollGround<EntityHippogryph>(0.9F, false) {
-                            @Override
-                            protected boolean checkExtraStartConditions(ServerLevel pLevel, PathfinderMob pOwner) {
-                                return !pOwner.getBrain().hasMemoryValue(MemoryModuleType.HOME) && super.checkExtraStartConditions(
-                                        pLevel,
-                                        pOwner
-                                );
-                            }
-                        }, UniformInt.of(1, 3)), 2),
-                        Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 1.0f, 16), 2),
-//                        Pair.of(new RandomStrollAir<>(0.9F, false), 2),
-                        Pair.of(new RunSometimes<>(new HippogryphHighJump<>(), UniformInt.of(3, 6)), 2),
-                        Pair.of(new DoNothing(60, 120), 2)
-//                        Pair.of(new SetWalkTargetFromLookTarget(AxolotlAi::canSetWalkTargetFromLookTarget, AxolotlAi::getSpeedModifier, 3), 3),
-//                        Pair.of(new RunIf<>(Entity::isInWaterOrBubble, new DoNothing(30, 60)), 5),
-//                        Pair.of(new RunIf<>(Entity::isOnGround, new DoNothing(200, 400)), 5))
-                )))
+                Pair.of(4, getIdleWalkBehavior())
         );
     }
 
