@@ -199,9 +199,9 @@ task uploadOutput(type: Exec) {
         commandLine 'cmd', '/c', 'start', "${project.projectDir}\\build\\libs"
     } else if (System.getProperty('os.name').toLowerCase().contains('mac')) {
         commandLine 'open', "${project.projectDir}/build/libs"
-    } 
-    // else if (System.getProperty('os.name').toLowerCase().contains('nix') || 
-    //             System.getProperty('os.name').toLowerCase().contains('nux') || 
+    }
+    // else if (System.getProperty('os.name').toLowerCase().contains('nix') ||
+    //             System.getProperty('os.name').toLowerCase().contains('nux') ||
     //             System.getProperty('os.name').toLowerCase().contains('mac')) {
     //     commandLine 'xdg-open', "${project.projectDir}/build/libs"
     // }
