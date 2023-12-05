@@ -149,24 +149,36 @@ public class BehaviorHippogryph {
         Activity activity = brain.getActiveNonCoreActivity().orElse((Activity) null);
         if (hippogryph.getControllingPassenger() != null) {
             brain.setActiveActivityIfPossible(Activity.RIDE);
+            brain.stopAll((ServerLevel) hippogryph.level, hippogryph);
+            brain.eraseMemory(MemoryModuleType.WALK_TARGET);
+            brain.eraseMemory(MemoryModuleType.LOOK_TARGET);
         } else {
             stopActivity(hippogryph, Activity.RIDE);
         }
 
         if (hippogryph.isOrderedToSit() && hippogryph.getCommand() == 1) {
             brain.setActiveActivityIfPossible(DragonActivity.SIT);
+            brain.stopAll((ServerLevel) hippogryph.level, hippogryph);
+            brain.eraseMemory(MemoryModuleType.WALK_TARGET);
+            brain.eraseMemory(MemoryModuleType.LOOK_TARGET);
         } else {
             stopActivity(hippogryph, DragonActivity.SIT);
         }
 
         if (hippogryph.isTame() && hippogryph.getCommand() == 2) {
             brain.setActiveActivityIfPossible(DragonActivity.FOLLOW);
+            brain.stopAll((ServerLevel) hippogryph.level, hippogryph);
+            brain.eraseMemory(MemoryModuleType.WALK_TARGET);
+            brain.eraseMemory(MemoryModuleType.LOOK_TARGET);
         } else {
             stopActivity(hippogryph, DragonActivity.FOLLOW);
         }
 
         if (hippogryph.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).isPresent()) {
             brain.setActiveActivityIfPossible(Activity.FIGHT);
+            brain.stopAll((ServerLevel) hippogryph.level, hippogryph);
+            brain.eraseMemory(MemoryModuleType.WALK_TARGET);
+            brain.eraseMemory(MemoryModuleType.LOOK_TARGET);
         } else {
             stopActivity(hippogryph, Activity.FIGHT);
         }

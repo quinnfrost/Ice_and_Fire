@@ -1,6 +1,7 @@
 package com.github.alexthe666.iceandfire.entity.behavior;
 
 import com.github.alexthe666.iceandfire.entity.EntityHippogryph;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonFlightUtils;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
 import com.github.alexthe666.iceandfire.entity.util.DragonUtils;
 import com.google.common.collect.ImmutableMap;
@@ -24,7 +25,9 @@ public class HippogryphHighJump<E extends EntityHippogryph & IBehaviorApplicable
 
     @Override
     protected boolean checkExtraStartConditions(ServerLevel pLevel, E pOwner) {
-        return super.checkExtraStartConditions(pLevel, pOwner);
+        return DragonFlightUtils.canAreaSeeSky(pLevel, pOwner.getOnPos(),
+                                               (int) Math.ceil(pOwner.getBbWidth())
+        ) && super.checkExtraStartConditions(pLevel, pOwner);
     }
 
     @Override

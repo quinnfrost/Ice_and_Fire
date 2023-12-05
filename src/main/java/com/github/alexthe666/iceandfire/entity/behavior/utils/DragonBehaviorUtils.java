@@ -13,6 +13,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.*;
 
 import javax.annotation.Nullable;
@@ -115,6 +116,12 @@ public class DragonBehaviorUtils {
                 new ClipContext(vector3d, vector3d2, blockMode, fluidMode, entity)
         );
         return blockRayTraceResult;
+    }
+
+    public static boolean canPositionBeSeen(Level level, Vec3 start, Vec3 position) {
+        final HitResult result = level.clip(new ClipContext(start, position, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null));
+        final double dist = result.getLocation().distanceToSqr(start);
+        return dist <= 1.0D || result.getType() == HitResult.Type.MISS;
     }
 
     public static int getTargetThreatScore(Mob estimator, Entity target) {
