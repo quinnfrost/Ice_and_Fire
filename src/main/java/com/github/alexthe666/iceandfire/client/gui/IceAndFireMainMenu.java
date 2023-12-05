@@ -85,6 +85,7 @@ public class IceAndFireMainMenu extends TitleScreen {
             try {
                 connection = url.openConnection();
                 connection.setConnectTimeout(200);
+                connection.setReadTimeout(1000);
                 InputStream is = connection.getInputStream();
                 reader = new BufferedReader(new InputStreamReader(is));
             } catch (IOException e) {
