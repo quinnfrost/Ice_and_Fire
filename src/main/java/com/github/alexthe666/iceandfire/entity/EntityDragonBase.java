@@ -11,6 +11,11 @@ import com.github.alexthe666.iceandfire.block.IDragonProof;
 import com.github.alexthe666.iceandfire.client.model.IFChainBuffer;
 import com.github.alexthe666.iceandfire.client.model.util.LegSolverQuadruped;
 import com.github.alexthe666.iceandfire.entity.ai.*;
+import com.github.alexthe666.iceandfire.entity.behavior.BehaviorFrostDragon;
+import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.NavigatiorFrostDragon;
 import com.github.alexthe666.iceandfire.entity.props.ChainProperties;
 import com.github.alexthe666.iceandfire.entity.props.MiscProperties;
 import com.github.alexthe666.iceandfire.entity.tile.TileEntityDragonforgeInput;
@@ -19,6 +24,7 @@ import com.github.alexthe666.iceandfire.enums.EnumDragonEgg;
 import com.github.alexthe666.iceandfire.inventory.ContainerDragon;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.item.ItemDragonArmor;
+import com.github.alexthe666.iceandfire.item.ItemHippogryphEgg;
 import com.github.alexthe666.iceandfire.item.ItemSummoningCrystal;
 import com.github.alexthe666.iceandfire.message.MessageDragonSetBurnBlock;
 import com.github.alexthe666.iceandfire.message.MessageStartRidingMob;
@@ -29,6 +35,9 @@ import com.github.alexthe666.iceandfire.pathfinding.raycoms.PathingStuckHandler;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.ICustomSizeNavigator;
 import com.github.alexthe666.iceandfire.world.DragonPosWorldData;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.mojang.serialization.Dynamic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -55,6 +64,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -62,9 +72,16 @@ import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.sensing.Sensor;
+import net.minecraft.world.entity.ai.sensing.SensorType;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.schedule.Activity;
+import net.minecraft.world.entity.schedule.Schedule;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -92,7 +109,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-public abstract class EntityDragonBase extends TamableAnimal implements IPassabilityNavigator, ISyncMount, IFlyingMount, IMultipartEntity, IAnimatedEntity, IDragonFlute, IDeadMob, IVillagerFear, IAnimalFear, IDropArmor, IHasCustomizableAttributes, ICustomSizeNavigator, ICustomMoveController, ContainerListener {
+public abstract class EntityDragonBase extends TamableAnimal implements IPassabilityNavigator, ISyncMount, IFlyingMount, IMultipartEntity, IAnimatedEntity, IDragonFlute, IDeadMob, IVillagerFear, IAnimalFear, IDropArmor, IHasCustomizableAttributes, ICustomSizeNavigator, ICustomMoveController, ContainerListener, IBehaviorApplicable {
 
     public static final int FLIGHT_CHANCE_PER_TICK = 1500;
     protected static final EntityDataAccessor<Boolean> SWIMMING = SynchedEntityData.defineId(EntityDragonBase.class, EntityDataSerializers.BOOLEAN);
@@ -248,9 +265,18 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         this.flightManager = new IafDragonFlightManager(this);
         this.logic = createDragonLogic();
         this.noCulling = true;
-        switchNavigator(0);
+//        switchNavigator(0);
         randomizeAttacks();
         resetParts(1);
+
+        if (this.isHovering()) {
+            this.airborneState = DragonBehaviorUtils.AirborneState.HOVER;
+        } else if (isFlying()) {
+            this.airborneState = DragonBehaviorUtils.AirborneState.FLY;
+        } else {
+            this.airborneState = DragonBehaviorUtils.AirborneState.GROUNDED;
+        }
+        this.switchNavigator(airborneState == DragonBehaviorUtils.AirborneState.GROUNDED);
     }
 
     public static AttributeSupplier.Builder bakeAttributes() {
@@ -270,6 +296,226 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     @Override
     public AttributeSupplier.Builder getConfigurableAttributes() {
         return bakeAttributes();
+    }
+
+    public Brain<EntityDragonBase> getBrain() {
+        return (Brain<EntityDragonBase>) super.getBrain();
+    }
+
+    private static final ImmutableList<MemoryModuleType<?>> MEMORY_TYPES = BehaviorFrostDragon.getMemoryTypes();
+
+    private static final ImmutableList<SensorType<? extends Sensor<? super EntityDragonBase>>> SENSOR_TYPES = BehaviorFrostDragon.getSensorTypes();
+
+    protected Brain.Provider<EntityDragonBase> brainProvider() {
+        return Brain.provider(MEMORY_TYPES, SENSOR_TYPES);
+    }
+
+    protected Brain<?> makeBrain(Dynamic<?> pDynamic) {
+        Brain<EntityDragonBase> brain = this.brainProvider().makeBrain(pDynamic);
+       BehaviorFrostDragon.registerBrainGoals(brain);
+
+//        if (!brain.hasMemoryValue(DragonMemoryModuleType.COMMAND)) {
+//            brain.setMemory(DragonMemoryModuleType.COMMAND, 0);
+//        }
+        return brain;
+    }
+
+    public void refreshBrain(ServerLevel pServerLevel) {
+        Brain<EntityDragonBase> brain = this.getBrain();
+        brain.stopAll(pServerLevel, this);
+        this.brain = brain.copyWithoutBehaviors();
+        BehaviorFrostDragon.registerBrainGoals(this.getBrain());
+    }
+
+
+
+    @Override
+    protected void customServerAiStep() {
+        this.level.getProfiler().push("dragonBrain");
+        this.getBrain().tick((ServerLevel) this.level, this);
+        this.level.getProfiler().pop();
+        BehaviorFrostDragon.updateActivity(this);
+        this.updateFlightStatus();
+
+        super.customServerAiStep();
+        breakBlock();
+    }
+
+    public void updateFlightStatus() {
+        this.setNoGravity(this.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED);
+        switch (this.getAirborneState()) {
+            case HOVER:
+            case FLY:
+            case GROUNDED:
+                this.setHovering(this.getAirborneState() == DragonBehaviorUtils.AirborneState.HOVER);
+                this.setFlying(this.getAirborneState() == DragonBehaviorUtils.AirborneState.FLY);
+
+//                if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+//                    this.takeoff();
+//                }
+                break;
+            case TAKEOFF:
+                this.setHovering(true);
+                this.setFlying(false);
+                if (takeoffCounter++ > 20 || this.isOverAirLogic()) {
+                    takeoffCounter = 0;
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.FLY);
+                }
+                break;
+            case LANDING:
+                this.setHovering(true);
+                this.setFlying(false);
+                if (this.getControllingPassenger() == null) {
+                    this.setDeltaMovement(this.getDeltaMovement().add(0, -0.1, 0));
+                }
+                if (!this.isOverAirLogic()) {
+                    this.setAirborneState(DragonBehaviorUtils.AirborneState.GROUNDED);
+                    this.setDeltaMovement(this.getDeltaMovement().with(Direction.Axis.X, 0).with(Direction.Axis.Z, 0));
+                }
+                break;
+        }
+
+    }
+
+    public DragonBehaviorUtils.AirborneState airborneState;
+    protected int takeoffCounter = 0;
+
+    @Override
+    public void setAirborneState(DragonBehaviorUtils.AirborneState state) {
+        this.airborneState = state;
+
+        switch (state) {
+
+            case HOVER:
+            case FLY:
+            case GROUNDED:
+
+                break;
+            case LANDING:
+                break;
+            case TAKEOFF:
+//                this.setHovering(true);
+//                this.setFlying(false);
+                break;
+        }
+    }
+
+    @Override
+    public DragonBehaviorUtils.AirborneState getAirborneState() {
+        return airborneState;
+    }
+
+    @Override
+    public void takeoff() {
+        if (this.isLandNavigator()) {
+            this.switchNavigator(false);
+        }
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.setDeltaMovement(this.getDeltaMovement().add(0,0.05,0));
+            this.switchNavigator(false);
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.TAKEOFF);
+        }
+    }
+
+    @Override
+    public void land() {
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.FLY || this.getAirborneState() == DragonBehaviorUtils.AirborneState.HOVER) {
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.LANDING);
+        }
+    }
+
+    @Override
+    public void hover() {
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.takeoff();
+        } else {
+            if (this.getControllingPassenger() == null) {
+                this.setDeltaMovement(this.getDeltaMovement().multiply(0.5f,0.5f,0.5f));
+            }
+            this.setAirborneState(DragonBehaviorUtils.AirborneState.HOVER);
+        }
+    }
+
+    @Override
+    public void walkTo(WalkTarget walkTarget) {
+        if (this.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.land();
+            return;
+        }
+
+        if (!isLandNavigator()) {
+            switchNavigator(true);
+        }
+        NavigatiorFrostDragon navigator = (NavigatiorFrostDragon) this.getNavigation();
+        navigator.moveToXYZ(
+                walkTarget.getTarget().currentPosition().x,
+                walkTarget.getTarget().currentPosition().y,
+                walkTarget.getTarget().currentPosition().z,
+                walkTarget.getSpeedModifier()
+        );
+    }
+
+    @Override
+    public void flightTo(WalkTarget walkTarget) {
+        if (this.getAirborneState() == DragonBehaviorUtils.AirborneState.GROUNDED) {
+            this.takeoff();
+            return;
+        }
+
+        if (isLandNavigator()) {
+            switchNavigator(false);
+        }
+//        this.getNavigation().moveTo(
+//                walkTarget.getTarget().currentPosition().x,
+//                walkTarget.getTarget().currentPosition().y,
+//                walkTarget.getTarget().currentPosition().z,
+//                walkTarget.getSpeedModifier()
+//        );
+        AdvancedPathNavigate navigator = (AdvancedPathNavigate) this.getNavigation();
+        navigator.moveToXYZ(
+                walkTarget.getTarget().currentPosition().x,
+                walkTarget.getTarget().currentPosition().y,
+                walkTarget.getTarget().currentPosition().z,
+                walkTarget.getSpeedModifier()
+        );
+//        FlyMoveHelper moveHelper = (FlyMoveHelper) this.getMoveControl();
+//        moveHelper.setWantedPosition(
+//                walkTarget.getTarget().currentPosition().x,
+//                walkTarget.getTarget().currentPosition().y,
+//                walkTarget.getTarget().currentPosition().z,
+//                walkTarget.getSpeedModifier()
+//        );
+    }
+
+    @Override
+    public void hoverAt(WalkTarget walkTarget) {
+
+    }
+
+    @Override
+    public boolean canLand() {
+        if (!IBehaviorApplicable.super.canLand()) {
+            return false;
+        }
+        return !brain.getMemory(DragonMemoryModuleType.FORBID_WALKING).orElse(false)
+                && !brain.isMemoryValue(DragonMemoryModuleType.PREFERRED_NAVIGATION_TYPE, DragonMemoryModuleType.NavigationType.FLY)
+                ;
+    }
+
+    @Override
+    public boolean canFly() {
+        if (!IBehaviorApplicable.super.canFly()) {
+            return false;
+        }
+        return !brain.getMemory(DragonMemoryModuleType.FORBID_FLYING).orElse(false)
+                && !brain.isMemoryValue(DragonMemoryModuleType.PREFERRED_NAVIGATION_TYPE, DragonMemoryModuleType.NavigationType.WALK)
+                && !this.getBrain().getMemory(MemoryModuleType.IS_TEMPTED).orElse(false)
+                ;
+    }
+
+    @Override
+    public void spawnChildFromBreeding(ServerLevel pLevel, Animal pMate) {
+
     }
 
     @Override
@@ -296,31 +542,31 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     @Override
     protected void registerGoals() {
 //        this.goalSelector.addGoal(0, new DragonAIRide<>(this));
-        this.goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
-        this.goalSelector.addGoal(2, new DragonAIMate(this, 1.0D));
-        this.goalSelector.addGoal(3, new DragonAIReturnToRoost(this, 1.0D));
-        this.goalSelector.addGoal(4, new DragonAIEscort(this, 1.0D));
-        this.goalSelector.addGoal(5, new DragonAIAttackMelee(this, 1.5D, false));
-        this.goalSelector.addGoal(6, new AquaticAITempt(this, 1.0D, IafItemRegistry.FIRE_STEW, false));
-        this.goalSelector.addGoal(7, new DragonAIWander(this, 1.0D));
-        this.goalSelector.addGoal(8, new DragonAIWatchClosest(this, LivingEntity.class, 6.0F));
-        this.goalSelector.addGoal(8, new DragonAILookIdle(this));
-        this.targetSelector.addGoal(1, new OwnerHurtTargetGoal(this));
-        this.targetSelector.addGoal(2, new OwnerHurtByTargetGoal(this));
-        this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(4, new DragonAITargetNonTamed(this, LivingEntity.class, false, new Predicate<LivingEntity>() {
-            @Override
-            public boolean apply(@Nullable LivingEntity entity) {
-                return (!(entity instanceof Player) || !((Player) entity).isCreative()) && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
-            }
-        }));
-        this.targetSelector.addGoal(5, new DragonAITarget(this, LivingEntity.class, true, new Predicate<LivingEntity>() {
-            @Override
-            public boolean apply(@Nullable LivingEntity entity) {
-                return entity instanceof LivingEntity && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
-            }
-        }));
-        this.targetSelector.addGoal(6, new DragonAITargetItems(this, false));
+//        this.goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
+//        this.goalSelector.addGoal(2, new DragonAIMate(this, 1.0D));
+//        this.goalSelector.addGoal(3, new DragonAIReturnToRoost(this, 1.0D));
+//        this.goalSelector.addGoal(4, new DragonAIEscort(this, 1.0D));
+//        this.goalSelector.addGoal(5, new DragonAIAttackMelee(this, 1.5D, false));
+//        this.goalSelector.addGoal(6, new AquaticAITempt(this, 1.0D, IafItemRegistry.FIRE_STEW, false));
+//        this.goalSelector.addGoal(7, new DragonAIWander(this, 1.0D));
+//        this.goalSelector.addGoal(8, new DragonAIWatchClosest(this, LivingEntity.class, 6.0F));
+//        this.goalSelector.addGoal(8, new DragonAILookIdle(this));
+//        this.targetSelector.addGoal(1, new OwnerHurtTargetGoal(this));
+//        this.targetSelector.addGoal(2, new OwnerHurtByTargetGoal(this));
+//        this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
+//        this.targetSelector.addGoal(4, new DragonAITargetNonTamed(this, LivingEntity.class, false, new Predicate<LivingEntity>() {
+//            @Override
+//            public boolean apply(@Nullable LivingEntity entity) {
+//                return (!(entity instanceof Player) || !((Player) entity).isCreative()) && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
+//            }
+//        }));
+//        this.targetSelector.addGoal(5, new DragonAITarget(this, LivingEntity.class, true, new Predicate<LivingEntity>() {
+//            @Override
+//            public boolean apply(@Nullable LivingEntity entity) {
+//                return entity instanceof LivingEntity && DragonUtils.canHostilesTarget(entity) && entity.getType() != EntityDragonBase.this.getType() && EntityDragonBase.this.shouldTarget(entity) && DragonUtils.isAlive(entity);
+//            }
+//        }));
+//        this.targetSelector.addGoal(6, new DragonAITargetItems(this, false));
     }
 
     protected abstract boolean shouldTarget(Entity entity);
@@ -504,7 +750,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     protected PathNavigation createNavigator(Level worldIn, AdvancedPathNavigate.MovementType type, PathingStuckHandler stuckHandler, float width, float height) {
-        AdvancedPathNavigate newNavigator = new AdvancedPathNavigate(this, level, type, width, height);
+        NavigatiorFrostDragon newNavigator = new NavigatiorFrostDragon(this, level, type, width, height);
         this.navigation = newNavigator;
         newNavigator.setCanFloat(true);
         newNavigator.getNodeEvaluator().setCanOpenDoors(true);
@@ -530,14 +776,21 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     @Override
-    public boolean canBeRiddenInWater(Entity rider) {
-        return true;
+    public void switchNavigator(boolean fly) {
+        if (fly) {
+            switchNavigator(1);
+        } else {
+            switchNavigator(0);
+        }
+    }
+
+    protected boolean isLandNavigator() {
+        return navigatorType == 0;
     }
 
     @Override
-    protected void customServerAiStep() {
-        super.customServerAiStep();
-        breakBlock();
+    public boolean canBeRiddenInWater(Entity rider) {
+        return true;
     }
 
     public boolean canDestroyBlock(BlockPos pos, BlockState state) {
@@ -1436,7 +1689,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return isOverAir;
     }
 
-    private boolean isOverAirLogic() {
+    public boolean isOverAirLogic() {
         return level.isEmptyBlock(new BlockPos(this.getX(), this.getBoundingBox().minY - 1, this.getZ()));
     }
 

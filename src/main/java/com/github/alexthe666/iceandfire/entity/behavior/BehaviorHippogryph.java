@@ -30,14 +30,11 @@ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
 public class BehaviorHippogryph {
-    public static final int PATHFIND_TICK_TIMESTAMP_OFFSET = -1;
-    public static final int AI_TICK_TIMESTAMP_OFFSET = -1;
 
     @NotNull
     public static ImmutableList<MemoryModuleType<?>> getMemoryTypes() {
@@ -101,12 +98,6 @@ public class BehaviorHippogryph {
 
                 DragonSensorType.SENSOR_TEST
         );
-    }
-
-    public static void moveTo(EntityHippogryph hippogryph, Vec3 vec3) {
-        if (hippogryph.canMove()) {
-
-        }
     }
 
     public static void registerActivities(Brain<EntityHippogryph> brain) {

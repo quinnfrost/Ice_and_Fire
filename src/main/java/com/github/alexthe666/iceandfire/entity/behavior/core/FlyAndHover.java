@@ -130,6 +130,7 @@ public class FlyAndHover<E extends Mob & IBehaviorApplicable> extends Behavior<E
                 }
             }
 
+            // Arrive and hover
             if (this.path != null && !this.path.canReach() && this.navigator.isDone()) {
                 this.start(pLevel, pOwner, pGameTime);
             }

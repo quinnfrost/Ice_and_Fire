@@ -2,7 +2,6 @@ package com.github.alexthe666.iceandfire.entity.behavior.utils;
 
 import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
 import com.github.alexthe666.iceandfire.entity.EntityHippogryph;
-import com.github.alexthe666.iceandfire.entity.behavior.BehaviorHippogryph;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.AdvancedPathNavigate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,6 +20,10 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 public class DragonBehaviorUtils {
+    // TODO: this is not good
+    public static final int PATHFIND_TICK_TIMESTAMP_OFFSET = -1;
+    public static final int AI_TICK_TIMESTAMP_OFFSET = -1;
+
     public enum AirborneState {
         GROUNDED,
         TAKEOFF,
@@ -208,12 +211,16 @@ public class DragonBehaviorUtils {
         if (pMob instanceof EntityHippogryph hippogryph) {
             if (hippogryph.getAirborneState() == AirborneState.GROUNDED && hippogryph.getNavigation() instanceof AdvancedPathNavigate navigate) {
 //                return navigate.lastPathFollowCompleteTimestamp == pMob.level.getGameTime() - 1;
-                return navigate.lastPathFollowCompleteTimestamp == pMob.level.getGameTime() + BehaviorHippogryph.PATHFIND_TICK_TIMESTAMP_OFFSET && hasArrived(pMob, pTarget.getTarget().currentBlockPosition(), 3.0d);
+                return navigate.lastPathFollowCompleteTimestamp == pMob.level.getGameTime() + PATHFIND_TICK_TIMESTAMP_OFFSET && hasArrived(pMob, pTarget.getTarget().currentBlockPosition(), 3.0d);
             }
             return hasArrived(pMob, pTarget.getTarget().currentBlockPosition(), 2.0d);
         }
         if (pMob instanceof EntityDragonBase dragon) {
-
+            if (dragon.getAirborneState() == AirborneState.GROUNDED && dragon.getNavigation() instanceof AdvancedPathNavigate navigate) {
+//                return navigate.lastPathFollowCompleteTimestamp == pMob.level.getGameTime() - 1;
+                return navigate.lastPathFollowCompleteTimestamp == pMob.level.getGameTime() + PATHFIND_TICK_TIMESTAMP_OFFSET && hasArrived(pMob, pTarget.getTarget().currentBlockPosition(), 3.0d);
+            }
+            return hasArrived(pMob, pTarget.getTarget().currentBlockPosition(), 2.0d);
         }
         return isWithinDistManhattan(pMob, pTarget.getTarget().currentBlockPosition(), pTarget.getCloseEnoughDist());
     }

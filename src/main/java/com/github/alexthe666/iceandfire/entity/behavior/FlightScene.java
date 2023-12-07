@@ -18,6 +18,8 @@ import java.util.*;
 public abstract class FlightScene<E extends Mob & IBehaviorApplicable> extends Behavior<E> {
     protected boolean isLoop;
     protected int pathIndex = 0;
+
+    // TODO: introduce a new memory type for flight path, or there won't be any proper way to interrupt this
     protected Queue<Pair<Vec3, Integer>> flightPath;
     protected Vec3 currentFlightPoint;
     protected int currentFlightPointStayTime;

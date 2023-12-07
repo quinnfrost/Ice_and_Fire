@@ -12,7 +12,7 @@ import java.util.Optional;
 public class DragonSensorType {
     public static final SensorType<SensorDragonTest> SENSOR_TEST = new SensorType<>(SensorDragonTest::new);
 
-    public static final SensorType<LongRangeLivingEntitySensor<?>> LONG_RANGE_LIVING_ENTITY_SENSOR = new SensorType<>(() -> new LongRangeLivingEntitySensor<>(BehaviorHippogryph::getAwareDistance));
+    public static final SensorType<LongRangeLivingEntitySensor<?>> LONG_RANGE_LIVING_ENTITY_SENSOR = new SensorType<>(() -> new LongRangeLivingEntitySensor<>());
 
     public static final SensorType<SensorOwnerHurtTarget> OWNER_HURT_TARGET_SENSOR = new SensorType<>(() -> new SensorOwnerHurtTarget());
     public static final SensorType<SensorOwnerHurtByTarget> OWNER_HURT_BY_TARGET_SENSOR = new SensorType<>(() -> new SensorOwnerHurtByTarget());
