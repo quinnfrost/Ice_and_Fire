@@ -1,8 +1,10 @@
 package com.github.alexthe666.iceandfire.entity.debug.quinnfrost;
 
 import com.github.alexthe666.iceandfire.IceAndFire;
+import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
 import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.NavigatorFrostDragon;
 import com.github.alexthe666.iceandfire.message.MessageSyncPath;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageClientDraw;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.MessageDebugEntity;
@@ -398,6 +400,14 @@ public class DebugUtils {
 
     }
 
+    public static List<String> getAdditionalDragonString(PathfinderMob mobEntity, Player player) {
+        return !(mobEntity instanceof EntityDragonBase dragon) ? new ArrayList<>() : List.of(
+          "AirbornState: " + dragon.getAirborneState(),
+          "Navigator type: " + (dragon.getNavigation() instanceof NavigatorFrostDragon<?> navigator ? navigator.getMovementType() : "unknown"),
+          "MoveControl: " + dragon.getMoveControl().getClass().getName()
+        );
+    }
+
     public static List<String> getTargetInfoString(PathfinderMob mobEntity, Player player) {
         if (mobEntity == null) {
             return new ArrayList<>();
@@ -409,6 +419,7 @@ public class DebugUtils {
         list.addAll(getEntityNameLong(mobEntity));
         list.addAll(getPositionInfo(mobEntity, player));
         list.addAll(getRotationInfo(mobEntity, player));
+        list.addAll(getAdditionalDragonString(mobEntity, player));
         list.addAll(getTravelInfo(mobEntity, player));
         list.addAll(getGoalInfo(mobEntity, player));
         list.addAll(getTaskInfo(mobEntity, player));

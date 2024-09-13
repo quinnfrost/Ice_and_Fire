@@ -1,5 +1,6 @@
 package com.github.alexthe666.iceandfire.entity.behavior.utils;
 
+import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 
 public interface IBehaviorApplicable {
@@ -10,7 +11,7 @@ public interface IBehaviorApplicable {
     void setFlying(boolean flying);
     void setHovering(boolean hovering);
     void switchNavigator(boolean fly);
-
+    void setMoveControl(MoveControl moveControl);
     void setAirborneState(DragonBehaviorUtils.AirborneState state);
     DragonBehaviorUtils.AirborneState getAirborneState();
     void takeoff();

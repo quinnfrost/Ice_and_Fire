@@ -18,10 +18,10 @@ import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 
-
+@Deprecated(forRemoval = false)
 public class IafDragonFlightManager {
     private final EntityDragonBase dragon;
-    private Vec3 target;
+    public Vec3 target;
     private IafDragonAttacks.Air prevAirAttack;
     private Vec3 startAttackVec;
     private Vec3 startPreyVec;

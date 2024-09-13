@@ -585,6 +585,11 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         }
     }
 
+    @Override
+    public void setMoveControl(MoveControl moveControl) {
+        this.moveControl = moveControl;
+    }
+
     protected boolean isOverAir() {
         return isOverAir;
     }

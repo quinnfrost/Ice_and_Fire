@@ -236,9 +236,19 @@ public class DragonBehaviorUtils {
      * @return
      */
     public static boolean hasArrived(LivingEntity entity, BlockPos pos, @Nullable Double accuracy) {
-        double targetX = pos.getX();
-        double targetY = pos.getY();
-        double targetZ = pos.getZ();
+        return hasArrived(entity, Vec3.atBottomCenterOf(pos), accuracy);
+    }
+
+    /**
+     * Determine if an entity's bounding box contains the target position
+     * @param entity
+     * @param pos
+     * @return
+     */
+    public static boolean hasArrived(LivingEntity entity, Vec3 pos, @Nullable Double accuracy) {
+        double targetX = pos.x;
+        double targetY = pos.y;
+        double targetZ = pos.z;
 
         AABB axisAlignedBB = new AABB(targetX,targetY,targetZ,targetX,targetY,targetZ).inflate(accuracy == null ? entity.getBoundingBox().getSize() : accuracy);
 //        AxisAlignedBB axisAlignedBB = new AxisAlignedBB(targetX,targetY,targetZ,targetX,targetY,targetZ).grow(accuracy == null ? (float) Math.sqrt(2f) : accuracy);
@@ -258,6 +268,12 @@ public class DragonBehaviorUtils {
         return false;
     }
 
+    /**
+     *
+     * @param livingEntity
+     * @param walkTarget
+     * @return
+     */
     public static boolean shouldFlyToTarget(LivingEntity livingEntity, WalkTarget walkTarget) {
         if (livingEntity instanceof EntityDragonBase dragon) {
             return dragon.isHovering() || dragon.isFlying() || shouldHoverAt(livingEntity, walkTarget);
@@ -269,6 +285,10 @@ public class DragonBehaviorUtils {
         return false;
     }
     // Fixme
+
+    public static boolean shouldFlyToTarget(LivingEntity livingEntity, Vec3 vec3) {
+         return shouldFlyToTarget(livingEntity, new WalkTarget(vec3, 1.0f, 0));
+    }
 
     public static boolean shouldHoverAt(LivingEntity dragon, WalkTarget walkTarget) {
 //        if (IafDragonBehaviorHelper.isOverAir(dragon)) {

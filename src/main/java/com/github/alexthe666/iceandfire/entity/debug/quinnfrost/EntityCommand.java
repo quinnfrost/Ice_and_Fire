@@ -108,9 +108,9 @@ public class EntityCommand {
             if (DebugUtils.hasMemoryItem(commandEntity)) {
                 commandEntity.getBrain().setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(pos, 1.0f, 0));
             }
-            if (commandEntity instanceof EntityDragonBase dragon && (dragon.isFlying() || dragon.isHovering())) {
-                dragon.flightManager.setFlightTarget(pos);
-            }
+//            if (commandEntity instanceof EntityDragonBase dragon && (dragon.isFlying() || dragon.isHovering())) {
+//                dragon.flightManager.setFlightTarget(pos);
+//            }
         }
     }
 

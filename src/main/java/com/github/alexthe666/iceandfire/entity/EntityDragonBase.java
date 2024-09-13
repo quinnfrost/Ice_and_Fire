@@ -10,12 +10,12 @@ import com.github.alexthe666.iceandfire.api.event.GenericGriefEvent;
 import com.github.alexthe666.iceandfire.block.IDragonProof;
 import com.github.alexthe666.iceandfire.client.model.IFChainBuffer;
 import com.github.alexthe666.iceandfire.client.model.util.LegSolverQuadruped;
-import com.github.alexthe666.iceandfire.entity.ai.*;
 import com.github.alexthe666.iceandfire.entity.behavior.BehaviorFrostDragon;
 import com.github.alexthe666.iceandfire.entity.behavior.brain.DragonMemoryModuleType;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.DragonBehaviorUtils;
 import com.github.alexthe666.iceandfire.entity.behavior.utils.IBehaviorApplicable;
-import com.github.alexthe666.iceandfire.entity.behavior.utils.NavigatiorFrostDragon;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.MoveControlFrostDragon;
+import com.github.alexthe666.iceandfire.entity.behavior.utils.NavigatorFrostDragon;
 import com.github.alexthe666.iceandfire.entity.props.ChainProperties;
 import com.github.alexthe666.iceandfire.entity.props.MiscProperties;
 import com.github.alexthe666.iceandfire.entity.tile.TileEntityDragonforgeInput;
@@ -24,7 +24,6 @@ import com.github.alexthe666.iceandfire.enums.EnumDragonEgg;
 import com.github.alexthe666.iceandfire.inventory.ContainerDragon;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.item.ItemDragonArmor;
-import com.github.alexthe666.iceandfire.item.ItemHippogryphEgg;
 import com.github.alexthe666.iceandfire.item.ItemSummoningCrystal;
 import com.github.alexthe666.iceandfire.message.MessageDragonSetBurnBlock;
 import com.github.alexthe666.iceandfire.message.MessageStartRidingMob;
@@ -34,9 +33,7 @@ import com.github.alexthe666.iceandfire.pathfinding.raycoms.IPassabilityNavigato
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.PathingStuckHandler;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.ICustomSizeNavigator;
 import com.github.alexthe666.iceandfire.world.DragonPosWorldData;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -68,20 +65,14 @@ import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
+import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.sensing.Sensor;
 import net.minecraft.world.entity.ai.sensing.SensorType;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.schedule.Activity;
-import net.minecraft.world.entity.schedule.Schedule;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -341,6 +332,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         breakBlock();
     }
 
+    // Todo: move to navigator
     public void updateFlightStatus() {
         this.setNoGravity(this.getAirborneState() != DragonBehaviorUtils.AirborneState.GROUNDED);
         switch (this.getAirborneState()) {
@@ -377,6 +369,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 
     }
 
+    // Fixme: what does this do?
     public DragonBehaviorUtils.AirborneState airborneState;
     protected int takeoffCounter = 0;
 
@@ -446,11 +439,9 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         if (!isLandNavigator()) {
             switchNavigator(true);
         }
-        NavigatiorFrostDragon navigator = (NavigatiorFrostDragon) this.getNavigation();
-        navigator.moveToXYZ(
-                walkTarget.getTarget().currentPosition().x,
-                walkTarget.getTarget().currentPosition().y,
-                walkTarget.getTarget().currentPosition().z,
+        NavigatorFrostDragon navigator = (NavigatorFrostDragon) this.getNavigation();
+        navigator.moveTo(
+                walkTarget.getTarget().currentPosition(),
                 walkTarget.getSpeedModifier()
         );
     }
@@ -471,11 +462,9 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 //                walkTarget.getTarget().currentPosition().z,
 //                walkTarget.getSpeedModifier()
 //        );
-        AdvancedPathNavigate navigator = (AdvancedPathNavigate) this.getNavigation();
-        navigator.moveToXYZ(
-                walkTarget.getTarget().currentPosition().x,
-                walkTarget.getTarget().currentPosition().y,
-                walkTarget.getTarget().currentPosition().z,
+        NavigatorFrostDragon navigator = (NavigatorFrostDragon) this.getNavigation();
+        navigator.moveTo(
+                walkTarget.getTarget().currentPosition(),
                 walkTarget.getSpeedModifier()
         );
 //        FlyMoveHelper moveHelper = (FlyMoveHelper) this.getMoveControl();
@@ -750,7 +739,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     protected PathNavigation createNavigator(Level worldIn, AdvancedPathNavigate.MovementType type, PathingStuckHandler stuckHandler, float width, float height) {
-        NavigatiorFrostDragon newNavigator = new NavigatiorFrostDragon(this, level, type, width, height);
+        NavigatorFrostDragon newNavigator = new NavigatorFrostDragon(this, level, type, width, height);
         this.navigation = newNavigator;
         newNavigator.setCanFloat(true);
         newNavigator.getNodeEvaluator().setCanOpenDoors(true);
@@ -758,33 +747,44 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     protected void switchNavigator(int navigatorType) {
-        if (navigatorType == 0) {
-            this.moveControl = new IafDragonFlightManager.GroundMoveHelper(this);
-            this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.WALKING, createStuckHandler().withTeleportSteps(5));
-            this.navigatorType = 0;
-            this.setFlying(false);
-            this.setHovering(false);
-        } else if (navigatorType == 1) {
-            this.moveControl = new IafDragonFlightManager.FlightMoveHelper(this);
-            this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
-            this.navigatorType = 1;
+        if (this.navigation instanceof NavigatorFrostDragon<?> navigator) {
+            if (navigatorType == 0) {
+                this.moveControl = new MoveControlFrostDragon.GroundMoveControl(this);
+                navigator.switchMovementType(AdvancedPathNavigate.MovementType.WALKING);
+                this.navigatorType = 0;
+                this.setFlying(false);
+                this.setHovering(false);
+            } else if (navigatorType == 1) {
+                this.moveControl = new MoveControlFrostDragon.FlyMoveControl(this);
+                navigator.switchMovementType(AdvancedPathNavigate.MovementType.FLYING);
+                this.navigatorType = 1;
+            } else if (navigatorType == 2) {
+                this.moveControl = new MoveControlFrostDragon.HoverMoveControl(this);
+                navigator.switchMovementType(AdvancedPathNavigate.MovementType.FLYING);
+                this.navigatorType = 2;
+            } else {
+                IceAndFire.LOGGER.warn("Invalid dragon navigator type: " + navigatorType);
+            }
         } else {
-            this.moveControl = new IafDragonFlightManager.PlayerFlightMoveHelper(this);
-            this.navigation = createNavigator(level, AdvancedPathNavigate.MovementType.FLYING);
-            this.navigatorType = 2;
+            IceAndFire.LOGGER.warn("Invalid dragon navigator: " + this.navigation);
         }
     }
 
     @Override
-    public void switchNavigator(boolean fly) {
-        if (fly) {
-            switchNavigator(1);
-        } else {
+    public void switchNavigator(boolean ground) {
+        if (ground) {
             switchNavigator(0);
+        } else {
+            switchNavigator(1);
         }
     }
 
-    protected boolean isLandNavigator() {
+    @Override
+    public void setMoveControl(MoveControl moveControl) {
+        this.moveControl = moveControl;
+    }
+
+    public boolean isLandNavigator() {
         return navigatorType == 0;
     }
 
@@ -2012,7 +2012,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         level.getProfiler().pop();
         level.getProfiler().push("dragonFlight");
         if (useFlyingPathFinder() && !level.isClientSide && isControlledByLocalInstance()) {
-            this.flightManager.update();
+//            this.flightManager.update();
         }
         level.getProfiler().pop();
     }
@@ -2293,6 +2293,8 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         // Note: when motion is handled by the client no server side setDeltaMovement() should be called
         // otherwise the movement will halt
         // Todo: move wrongly fix
+        // Todo: hover/flying tab here should match in behavior
+        // Todo: client side flag management
         if (allowLocalMotionControl && this.getControllingPassenger() != null && canBeControlledByRider()) {
             LivingEntity rider = (LivingEntity) this.getControllingPassenger();
             if (rider == null) {

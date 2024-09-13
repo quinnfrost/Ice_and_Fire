@@ -89,6 +89,7 @@ public class AdvancedPathNavigate extends AbstractAdvancedPathNavigate {
     public enum MovementType {
         WALKING,
         FLYING,
+        HOVERING, // includes fly hovering and stay hovering
         CLIMBING
     }
 

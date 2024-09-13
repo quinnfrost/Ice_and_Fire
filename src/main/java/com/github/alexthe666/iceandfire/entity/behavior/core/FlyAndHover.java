@@ -64,9 +64,9 @@ public class FlyAndHover<E extends Mob & IBehaviorApplicable> extends Behavior<E
             Optional<WalkTarget> optional = pEntity.getBrain().getMemory(MemoryModuleType.WALK_TARGET);
 
             return this.shouldUseFlyingNavigator(pEntity)
-                    && pEntity.canMove()
                     && optional.isPresent()
-                    && !DragonBehaviorUtils.reachedTarget(pEntity, optional.get());
+//                    && !DragonBehaviorUtils.reachedTarget(pEntity, optional.get())
+                    && pEntity.canMove();
         } else {
             return false;
         }
@@ -107,6 +107,17 @@ public class FlyAndHover<E extends Mob & IBehaviorApplicable> extends Behavior<E
 
     }
 
+    /**
+     * Manage flying and hovering behavior. Their only difference is in move controller <br>
+     * Flying move control are faster, speeds up when diving, and angle clamped <br>
+     * Hovering move control are slow, and is able to actual hover in the air <br>
+     * TODO: none of these are implemented yet <br>
+     * Use {@link IBehaviorApplicable#setAirborneState(DragonBehaviorUtils.AirborneState)} to control controller movement <br>
+     * This will also affect animation
+     * @param pLevel
+     * @param pOwner
+     * @param pGameTime
+     */
     protected void tick(ServerLevel pLevel, E pOwner, long pGameTime) {
         Path path = pOwner.getNavigation().getPath();
         Brain<?> brain = pOwner.getBrain();
@@ -124,6 +135,7 @@ public class FlyAndHover<E extends Mob & IBehaviorApplicable> extends Behavior<E
             // Target is on ground
             else {
                 if (!DragonBehaviorUtils.shouldHoverAt(pOwner, new WalkTarget(pOwner, 1.0f, 0))
+                        && !DragonBehaviorUtils.shouldHoverAt(pOwner, walkTarget)
                         && pOwner.getAirborneState() == DragonBehaviorUtils.AirborneState.FLY
                         && pOwner.canLand()) {
                     pOwner.land();
@@ -138,6 +150,7 @@ public class FlyAndHover<E extends Mob & IBehaviorApplicable> extends Behavior<E
                 if (walkTarget.getTarget().currentBlockPosition().distSqr(this.lastTargetPos) > 4.0D) {
                     this.lastTargetPos = walkTarget.getTarget().currentBlockPosition();
                     this.start(pLevel, pOwner, pGameTime);
+                    pOwner.setAirborneState(DragonBehaviorUtils.AirborneState.FLY);
                 }
 
             }
