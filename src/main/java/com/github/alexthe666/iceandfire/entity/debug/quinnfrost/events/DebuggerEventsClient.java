@@ -4,6 +4,7 @@ import com.github.alexthe666.iceandfire.IceAndFire;
 import com.github.alexthe666.iceandfire.client.IafKeybindRegistry;
 import com.github.alexthe666.iceandfire.entity.EntityMutlipartPart;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.EntityCommand;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.RayTraceUtils;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlow;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
@@ -15,6 +16,7 @@ import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.Pathfinding;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
@@ -39,11 +41,12 @@ public class DebuggerEventsClient {
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        int maxDistance = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16;
+        Options clientOptions = Minecraft.getInstance().options;
+        int maxDistance = clientOptions.getEffectiveRenderDistance() * 16;
         LocalPlayer clientPlayerEntity = Minecraft.getInstance().player;
 
         if (clientPlayerEntity != null && clientPlayerEntity.getMainHandItem().is(IafItemRegistry.DRAGON_DEBUG_STICK.get())) {
-            if (Minecraft.getInstance().options.keyUse.isDown()) {
+            if (clientOptions.keyUse.isDown()) {
 
                 // Do raytrace
                 HitResult result = RayTraceUtils.getTargetBlockOrEntity(clientPlayerEntity,
@@ -72,9 +75,17 @@ public class DebuggerEventsClient {
                     // Key released
                     if (lastUseKeyDown) {
                         if (result instanceof EntityHitResult entityHitResult) {
-                            IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
-                                                                                entityHitResult.getEntity()
-                            ));
+                            if (clientOptions.keyShift.isDown()) {
+                                IceAndFire.sendMSGToServer(new MessageCommandEntity(EntityCommand.CommandType.FORCE_POS,
+                                                                                    selectedEntity.getFirst().getId(),
+                                                                                    entityHitResult.getLocation(),
+                                                                                    0
+                                ));
+                            } else {
+                                IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
+                                                                                    entityHitResult.getEntity()
+                                ));
+                            }
                         } else if (result instanceof BlockHitResult blockHitResult) {
                             blockHitResult = RayTraceUtils.getTargetBlock(clientPlayerEntity,
                                                                           selectedEntity.getSecond(),
@@ -82,15 +93,34 @@ public class DebuggerEventsClient {
                                                                           ClipContext.Block.VISUAL
                             );
                             if (blockHitResult.getType() != HitResult.Type.MISS) {
-                                IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
-                                                                                    blockHitResult.getLocation()
-                                ));
+                                if (clientOptions.keyShift.isDown()) {
+                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(EntityCommand.CommandType.FORCE_POS,
+                                                                                        selectedEntity.getFirst().getId(),
+                                                                                        blockHitResult.getLocation(),
+                                                                                        0
+                                    ));
+                                } else {
+                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
+                                                                                        blockHitResult.getLocation()
+                                    ));
+                                }
                             } else {
-                                IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
-                                                                                    clientPlayerEntity.getPosition(1.0f).add(
-                                                                                            clientPlayerEntity.getLookAngle().scale(
-                                                                                                    selectedEntity.getSecond()))
-                                ));
+                                if (clientOptions.keyShift.isDown()) {
+                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(EntityCommand.CommandType.FORCE_POS,
+                                                                                        selectedEntity.getFirst().getId(),
+                                                                                        clientPlayerEntity.getPosition(1.0f).add(
+                                                                                                clientPlayerEntity.getLookAngle().scale(
+                                                                                                        selectedEntity.getSecond()))
+                                                                                        ,
+                                                                                        0
+                                    ));
+                                } else {
+                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
+                                                                                        clientPlayerEntity.getPosition(1.0f).add(
+                                                                                                clientPlayerEntity.getLookAngle().scale(
+                                                                                                        selectedEntity.getSecond()))
+                                    ));
+                                }
                             }
                         }
 

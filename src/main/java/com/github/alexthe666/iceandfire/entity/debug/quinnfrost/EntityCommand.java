@@ -26,7 +26,8 @@ public class EntityCommand {
     public enum CommandType {
         SIGNAL,
         MOVE,
-        ATTACK
+        ATTACK,
+        FORCE_POS
     }
 
     public EntityCommand() {
@@ -78,28 +79,29 @@ public class EntityCommand {
         ServerPlayer player = (ServerPlayer) issuer;
         ServerLevel level = player.serverLevel();
         switch (commandType) {
-            case SIGNAL:
-                commandEntities.forEach(commandEntity -> {
-                    IceAndFire.sendMSGToPlayer(new MessageCommandEntity(CommandType.SIGNAL,
-                                                                        commandEntity.getId(),
-                                                                        null,
-                                                                        0
-                    ), player);
+            case SIGNAL -> commandEntities.forEach(commandEntity -> {
+                IceAndFire.sendMSGToPlayer(new MessageCommandEntity(CommandType.SIGNAL,
+                                                                    commandEntity.getId(),
+                                                                    null,
+                                                                    0
+                ), player);
+            });
+            case MOVE -> commandEntities.forEach(commandEntity -> {
+                setMoveTo(commandEntity, pos);
+            });
+            case ATTACK -> commandEntities.forEach(commandEntity -> {
+                targetEntities.forEach(targetEntity -> {
+                    setAttackTarget(commandEntity, targetEntity);
                 });
-                return true;
-            case MOVE:
-                commandEntities.forEach(commandEntity -> {
-                    setMoveTo(commandEntity, pos);
-                });
-            case ATTACK:
-                commandEntities.forEach(commandEntity -> {
-                    targetEntities.forEach(targetEntity -> {
-                        setAttackTarget(commandEntity, targetEntity);
-                    });
-                });
-            default:
+            });
+            case FORCE_POS -> commandEntities.forEach(commandEntity -> {
+                setPos(commandEntity, pos);
+            });
+            default -> {
                 return false;
+            }
         }
+        return true;
     }
 
     public static void setMoveTo(PathfinderMob commandEntity, Vec3 pos) {
@@ -127,5 +129,9 @@ public class EntityCommand {
             }
             commandEntity.setTarget(null);
         }
+    }
+
+    public static void setPos(Entity entity, Vec3 pos) {
+        entity.setPos(pos.x, pos.y + 0.1, pos.z);
     }
 }

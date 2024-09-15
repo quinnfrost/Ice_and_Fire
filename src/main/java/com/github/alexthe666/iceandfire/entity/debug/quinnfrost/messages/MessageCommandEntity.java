@@ -45,29 +45,31 @@ public class MessageCommandEntity {
     public void encoder(FriendlyByteBuf buffer) {
         buffer.writeInt(commandType.ordinal());
         buffer.writeInt(commandEntityId);
-        if (commandType == EntityCommand.CommandType.MOVE) {
+
+        if (pos != null) {
+            buffer.writeBoolean(true);
             buffer.writeDouble(pos.x);
             buffer.writeDouble(pos.y);
             buffer.writeDouble(pos.z);
-        } else if (commandType == EntityCommand.CommandType.ATTACK) {
-            buffer.writeInt(targetEntityId);
+        } else {
+            buffer.writeBoolean(false);
         }
+        buffer.writeInt(targetEntityId);
     }
 
     public static MessageCommandEntity decoder(FriendlyByteBuf buffer) {
         EntityCommand.CommandType commandType = EntityCommand.CommandType.values()[buffer.readInt()];
         int commandEntityId = buffer.readInt();
-        if (commandType == EntityCommand.CommandType.MOVE) {
-            return new MessageCommandEntity(commandType, commandEntityId, new Vec3(
+        Vec3 pos = null;
+        if (buffer.readBoolean()) {
+            pos = new Vec3(
                     buffer.readDouble(),
                     buffer.readDouble(),
                     buffer.readDouble()
-            ), 0);
-        } else if (commandType == EntityCommand.CommandType.ATTACK) {
-            return new MessageCommandEntity(commandType, commandEntityId, null, buffer.readInt());
-        } else {
-            return new MessageCommandEntity(commandType, commandEntityId, null, 0);
+            );
         }
+        return new MessageCommandEntity(commandType, commandEntityId, pos, buffer.readInt());
+
     }
 
     public boolean handler(Supplier<NetworkEvent.Context> contextSupplier) {
