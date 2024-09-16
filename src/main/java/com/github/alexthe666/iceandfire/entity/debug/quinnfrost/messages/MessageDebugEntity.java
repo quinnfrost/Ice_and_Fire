@@ -6,9 +6,11 @@ import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.ClientGlo
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.overlay.OverlayInfoPanel;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.client.RenderNode;
 import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
@@ -90,7 +92,8 @@ public class MessageDebugEntity {
 
             if (contextSupplier.get().getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
                 if (isActive) {
-                    Entity entity = IceAndFire.PROXY.getClientSidePlayer().level().getEntity(entityId);
+                    Player clientSidePlayer = IceAndFire.PROXY.getClientSidePlayer();
+                    Entity entity = clientSidePlayer.level().getEntity(entityId);
                     if (!(entity instanceof PathfinderMob)) {
                         return;
                     }
@@ -106,7 +109,11 @@ public class MessageDebugEntity {
 
                         OverlayInfoPanel.bufferInfoLeft = serverEntityInfo;
                         OverlayInfoPanel.bufferInfoRight = DebugUtils.getTargetInfoString(targetEntity,
-                                                                                          IceAndFire.PROXY.getClientSidePlayer()
+                                                                                          clientSidePlayer
+                        );
+                        clientSidePlayer.displayClientMessage(
+                                Component.nullToEmpty(DebugUtils.getPositionInfo(clientSidePlayer, clientSidePlayer).get(0) + " @ " + String.format("%.2f", DebugUtils.getSpeed(clientSidePlayer))),
+                                true
                         );
                     } else {
                         ClientGlow.setGlowing(targetEntity, 10);

@@ -11,10 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -150,11 +147,14 @@ public class DebugUtils {
         }).orElse("-");
     }
 
-    public static double getSpeed(Mob mob) {
+    public static double getSpeed(LivingEntity livingEntity) {
 //        double dX = mob.getX() - mob.xOld;
 //        double dY = mob.getY() - mob.yOld;
 //        double dZ = mob.getZ() - mob.zOld;
-        return mob.getPosition(1.0f).distanceTo(new Vec3(mob.xOld, mob.yOld, mob.zOld)) / 0.05;
+        return livingEntity.getPosition(1.0f).distanceTo(new Vec3(livingEntity.xOld,
+                                                                  livingEntity.yOld,
+                                                                  livingEntity.zOld
+        )) / 0.05;
     }
 
     public static boolean hasMemoryItem(Mob mob) {
@@ -215,7 +215,7 @@ public class DebugUtils {
         );
     }
 
-    public static List<String> getPositionInfo(PathfinderMob mobEntity, Player player) {
+    public static List<String> getPositionInfo(LivingEntity mobEntity, Player player) {
         return List.of(String.format("Pos: %.5f, %.5f, %.5f ",
                                      mobEntity.position().x,
                                      mobEntity.position().y,
@@ -224,7 +224,7 @@ public class DebugUtils {
                                          mobEntity.blockPosition().getX(),
                                          mobEntity.blockPosition().getY(),
                                          mobEntity.blockPosition().getZ()
-                       ) + String.format("(%.2f)", mobEntity.distanceTo(player)),
+                       ) + (mobEntity.getId() == player.getId() ? "" : String.format("(%.2f)", mobEntity.distanceTo(player))),
                        String.format("Rot: %.2f, %.2f ", mobEntity.getXRot(), mobEntity.getYRot())
                                + String.format("(%s)", mobEntity.getDirection()),
                        "Motion: " + String.format("%.3f, %.3f, %.3f (%.2f)",
@@ -313,7 +313,10 @@ public class DebugUtils {
 
         try {
             getMemoryItem(mob, MemoryModuleType.HAS_HUNTING_COOLDOWN).ifPresent(aBoolean -> {
-                stringList.add(String.format("HasHuntingCooldown: %s (%d)", aBoolean, mob.getBrain().getTimeUntilExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN)));
+                stringList.add(String.format("HasHuntingCooldown: %s (%d)",
+                                             aBoolean,
+                                             mob.getBrain().getTimeUntilExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN)
+                ));
             });
 //            if (brain.hasMemoryValue(MemoryModuleType.WALK_TARGET)) {
 //                brain.getMemory(MemoryModuleType.WALK_TARGET).ifPresent(target -> {
