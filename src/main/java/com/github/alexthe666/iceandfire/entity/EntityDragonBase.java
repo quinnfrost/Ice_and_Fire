@@ -56,9 +56,7 @@ import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.attributes.*;
 import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
 import net.minecraft.world.entity.ai.goal.TemptGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
@@ -81,6 +79,7 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
@@ -95,6 +94,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 
 public abstract class EntityDragonBase extends TamableAnimal implements IPassabilityNavigator, ISyncMount, IFlyingMount, IMultipartEntity, IAnimatedEntity, IDragonFlute, IDeadMob, IVillagerFear, IAnimalFear, IDropArmor, IHasCustomizableAttributes, ICustomSizeNavigator, ICustomMoveController, ContainerListener {
 
@@ -2050,6 +2050,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         // flyingSpeed is now semi-hardcoded in LivingEntity#getFlyingSpeed
         // Todo: remove flyingSpeed
         float flyingSpeed;
+        this.setSharedFlag(7, gliding & this.getControllingPassenger() != null);
         if (allowLocalMotionControl && this.getControllingPassenger() != null) {
             LivingEntity rider = this.getControllingPassenger();
             if (rider == null) {
@@ -2129,6 +2130,11 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     } else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
                     }
+
+                    // Let's see how this goes
+                    forward = 0;
+                    vertical = 0;
+                    strafing = 0;
                 }
                 // Speed bonus damping
                 glidingSpeedBonus -= (float) (glidingSpeedBonus * 0.01d);
@@ -2139,15 +2145,20 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     flyingSpeed = speed * 0.1F;
                     this.setSpeed(flyingSpeed);
 
-                    this.moveRelative(flyingSpeed, new Vec3(strafing, vertical, forward));
-                    this.move(MoverType.SELF, this.getDeltaMovement());
-                    this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
 
-                    Vec3 currentMotion = this.getDeltaMovement();
-                    if (this.horizontalCollision) {
-                        currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+                    if (this.isFallFlying()) {
+                        handleFallFlyingMotionAndMove(this);
+                    } else {
+                        this.moveRelative(flyingSpeed, new Vec3(strafing, vertical, forward));
+                        this.move(MoverType.SELF, this.getDeltaMovement());
+                        this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
+
+                        Vec3 currentMotion = this.getDeltaMovement();
+                        if (this.horizontalCollision) {
+                            currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+                        }
+                        this.setDeltaMovement(currentMotion);
                     }
-                    this.setDeltaMovement(currentMotion);
 
                     this.calculateEntityAnimation(false);
                 } else {
@@ -2155,7 +2166,6 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 }
                 this.tryCheckInsideBlocks();
                 this.updatePitch(this.yOld - this.getY());
-                return;
             }
             // In water move control, for those that can't swim
             else if (isInWater() || isInLava()) {
@@ -2214,6 +2224,116 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         else {
             super.travel(pTravelVector);
         }
+    }
+
+    public static Vec3 handleFallFlyingMotionAndMove(LivingEntity livingEntity) {
+        double g = 0.08;
+        AttributeInstance gravity = livingEntity.getAttribute((Attribute) ForgeMod.ENTITY_GRAVITY.get());
+        g = gravity.getValue();
+
+        return handleFallFlyingMotionAndMove(livingEntity,
+                                             g,
+                                             new Vec3(0.9900000095367432, 0.9800000190734863, 0.9900000095367432),
+                                             ((livingEntity1, motion) -> {
+                                                 livingEntity1.setDeltaMovement(motion);
+                                             }),
+                                             (livingEntity1, deltaMotion) -> {
+                                                 livingEntity1.hurt(livingEntity1.damageSources().flyIntoWall(),
+                                                                    deltaMotion
+                                                 );
+                                             }
+        );
+    }
+
+    /**
+     * Calculate elytra flying motion
+     *
+     * @param livingEntity
+     * @param gravity
+     * @param frictionFactor
+     * @param onSetMotion
+     * @param onCollide
+     * @return
+     * @see LivingEntity#travel(Vec3)
+     */
+    public static Vec3 handleFallFlyingMotionAndMove(LivingEntity livingEntity, double gravity, Vec3 frictionFactor, BiConsumer<LivingEntity, Vec3> onSetMotion, BiConsumer<LivingEntity, Float> onCollide) {
+        // Delta movement
+        Vec3 motion = livingEntity.getDeltaMovement();
+        // Look vector, with a length of 1(ish)
+        Vec3 lookVec = livingEntity.getLookAngle();
+        // XRot to radian, XRot takes minus on looking upward
+        float f4 = livingEntity.getXRot() * 0.017453292F;
+        // Look vector horizontal length
+        // takes 1 when looking horizontal, 0 when looking vertical
+        double d1 = Math.sqrt(lookVec.x * lookVec.x + lookVec.z * lookVec.z);
+        // Horizontal motion
+        double d3 = motion.horizontalDistance();
+        // Look vector length, this should be 1
+        double d4 = lookVec.length();
+        // Horizontal component of the look vector
+        double d5 = Math.cos((double)f4);
+        // Squared?
+        // d5 is still the horizontal component of the look vector
+        // but smaller, making it response more like a quadratic curve
+        d5 = d5 * d5 * Math.min(1.0, d4 / 0.4);
+        // Vertical acceleration based on the pitch
+        // -g + 0.75g * d5
+        // d5 takes 1 when looking horizontal, 0 when looking vertical
+        // which means looking horizontal will counter the g effect, but no more than a quarter
+        // looking upward with positive motion will decelerate, looking downward will accelerate
+        // this can be seen as the influence of the gravity and elytra combined
+        motion = livingEntity.getDeltaMovement().add(0.0, gravity * (-1.0 + d5 * 0.75), 0.0);
+        double d11;
+        // d1 is always > 0
+        // when directly using lookVec for calculating motion, divided by d1 to normalize the value
+        // when going downward
+        if (motion.y < 0.0 && d1 > 0.0) {
+            // this is used to convert vertical motion to horizontal motion
+            // when looking straight up/down, d11 takes 0, no speed in any axis
+            // when looking horizontal, d11 converts 0.1 of vertical motion to horizontal motion
+            // until there is no vertical motion left
+            d11 = motion.y * -0.1 * d5;
+            motion = motion.add(lookVec.x * d11 / d1, d11, lookVec.z * d11 / d1);
+        }
+
+        // looking upward
+        if (f4 < 0.0F && d1 > 0.0) {
+            // d11 acts as a punishment on speed for flying up
+            // sine takes the vertical component of the look vector, 0.04 is the horizontal slow factor
+            // higher the pitch, higher the punishment
+            // fly up speed punishment factor is 3.2 * 0.04 = 0.128
+            d11 = d3 * (double)(-Mth.sin(f4)) * 0.04;
+            motion = motion.add(-lookVec.x * d11 / d1, d11 * 3.2, -lookVec.z * d11 / d1);
+        }
+
+        // looking downward, but the speed still goes up
+        if (d1 > 0.0) {
+            // accelerate without cost
+            motion = motion.add((lookVec.x / d1 * d3 - motion.x) * 0.1, 0.0, (lookVec.z / d1 * d3 - motion.z) * 0.1);
+        }
+
+        // damp the motion
+        // slow factor on Y axis is smaller than others
+//        livingEntity.setDeltaMovement(motion.multiply(frictionFactor));
+        motion = motion.multiply(frictionFactor);
+        onSetMotion.accept(livingEntity, motion);
+        livingEntity.move(MoverType.SELF, livingEntity.getDeltaMovement());
+        if (livingEntity.horizontalCollision && !livingEntity.level().isClientSide) {
+            // when flying into a wall, damage is calculated based on the deceleration provided by the wall
+            // d11 is the motion after the horizontal collision, which will contain zero after updated by this.move
+            d11 = livingEntity.getDeltaMovement().horizontalDistance();
+            // d7 the deceleration applied by the wall
+            double d7 = d3 - d11;
+            // damage value 10d7 - 3
+            float f1 = (float)(d7 * 10.0 - 3.0);
+            if (f1 > 0.0F) {
+//                    livingEntity.playSound(livingEntity.getFallDamageSound((int)f1), 1.0F, 1.0F);
+//                livingEntity.hurt(livingEntity.damageSources().flyIntoWall(), f1);
+                onCollide.accept(livingEntity, f1);
+            }
+        }
+
+        return motion;
     }
 
     /**
