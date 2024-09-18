@@ -2027,6 +2027,9 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return super.isInWater() && this.getFluidHeight(FluidTags.WATER) > Mth.floor(this.getDragonStage() / 2.0f);
     }
 
+    // There is no backup solution since the goal based riding control is buggy and have security issues
+    // so this can be removed, this is not optional anymore
+    @Deprecated
     public boolean allowLocalMotionControl = true;
     public boolean allowMousePitchControl = true;
     protected boolean gliding = false;
@@ -2050,7 +2053,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         // flyingSpeed is now semi-hardcoded in LivingEntity#getFlyingSpeed
         // Todo: remove flyingSpeed
         float flyingSpeed;
-        this.setSharedFlag(7, gliding & this.getControllingPassenger() != null);
+        this.setSharedFlag(7, this.isSprinting() & this.getControllingPassenger() != null);
         if (allowLocalMotionControl && this.getControllingPassenger() != null) {
             LivingEntity rider = this.getControllingPassenger();
             if (rider == null) {
@@ -2131,10 +2134,8 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
                     }
 
-                    // Let's see how this goes
-                    forward = 0;
-                    vertical = 0;
-                    strafing = 0;
+                    speed *= 0.5F;
+
                 }
                 // Speed bonus damping
                 glidingSpeedBonus -= (float) (glidingSpeedBonus * 0.01d);
@@ -2143,22 +2144,22 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     // Vanilla friction on Y axis is smaller, which will influence terminal speed for climbing and diving
                     // use same friction coefficient on all axis simplifies how travel vector is computed
                     flyingSpeed = speed * 0.1F;
+
                     this.setSpeed(flyingSpeed);
+                    this.moveRelative(flyingSpeed, new Vec3(strafing, vertical, forward));
 
-
-                    if (this.isFallFlying()) {
-                        handleFallFlyingMotionAndMove(this);
-                    } else {
-                        this.moveRelative(flyingSpeed, new Vec3(strafing, vertical, forward));
+                    if (!gliding) {
                         this.move(MoverType.SELF, this.getDeltaMovement());
                         this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
-
-                        Vec3 currentMotion = this.getDeltaMovement();
-                        if (this.horizontalCollision) {
-                            currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
-                        }
-                        this.setDeltaMovement(currentMotion);
+                    } else {
+                        handleFallFlyingMotionAndMove(this, !gliding);
                     }
+
+                    Vec3 currentMotion = this.getDeltaMovement();
+                    if (this.horizontalCollision) {
+                        currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+                    }
+                    this.setDeltaMovement(currentMotion);
 
                     this.calculateEntityAnimation(false);
                 } else {
@@ -2226,13 +2227,38 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         }
     }
 
-    public static Vec3 handleFallFlyingMotionAndMove(LivingEntity livingEntity) {
+    public static Vec3 matchVector(Vec3 motion, Vec3 look) {
+        return look.scale(motion.length());
+    }
+
+    // For debug purpose
+    @Override
+    public void setDeltaMovement(Vec3 pDeltaMovement) {
+        super.setDeltaMovement(pDeltaMovement);
+    }
+
+    public static Vec3 calculateFallFlyingMotion(LivingEntity livingEntity) {
         double g = 0.08;
         AttributeInstance gravity = livingEntity.getAttribute((Attribute) ForgeMod.ENTITY_GRAVITY.get());
         g = gravity.getValue();
 
         return handleFallFlyingMotionAndMove(livingEntity,
                                              g,
+                                             new Vec3(0.9900000095367432, 0.9800000190734863, 0.9900000095367432),
+                                             ((livingEntity1, motion) -> {
+                                             }),
+                                             (livingEntity1, deltaMotion) -> {
+                                             }
+        );
+    }
+
+    public static Vec3 handleFallFlyingMotionAndMove(LivingEntity livingEntity, boolean noGravity) {
+        double g = 0.08;
+        AttributeInstance gravity = livingEntity.getAttribute((Attribute) ForgeMod.ENTITY_GRAVITY.get());
+        g = gravity.getValue();
+
+        return handleFallFlyingMotionAndMove(livingEntity,
+                                             noGravity ? 0 : g,
                                              new Vec3(0.9900000095367432, 0.9800000190734863, 0.9900000095367432),
                                              ((livingEntity1, motion) -> {
                                                  livingEntity1.setDeltaMovement(motion);
@@ -2272,6 +2298,13 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         double d4 = lookVec.length();
         // Horizontal component of the look vector
         double d5 = Math.cos((double)f4);
+
+        // Specially: gravity = 0
+        lookVec = lookVec.with(Direction.Axis.Y, 0.0).normalize();
+        f4 = 0;
+        d1 = 1;
+
+
         // Squared?
         // d5 is still the horizontal component of the look vector
         // but smaller, making it response more like a quadratic curve
@@ -2287,35 +2320,41 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         // d1 is always > 0
         // when directly using lookVec for calculating motion, divided by d1 to normalize the value
         // when going downward
+        float horizontalAccRate = 0.1f; // default 0.1
         if (motion.y < 0.0 && d1 > 0.0) {
             // this is used to convert vertical motion to horizontal motion
             // when looking straight up/down, d11 takes 0, no speed in any axis
             // when looking horizontal, d11 converts 0.1 of vertical motion to horizontal motion
             // until there is no vertical motion left
-            d11 = motion.y * -0.1 * d5;
+            d11 = motion.y * -horizontalAccRate * d5;
             motion = motion.add(lookVec.x * d11 / d1, d11, lookVec.z * d11 / d1);
         }
 
         // looking upward
+        float horizontalDeaccRate = 0.04f;  // default 0.04
+        float verticalDeaccRate = 0.128f;   // default 0.128
         if (f4 < 0.0F && d1 > 0.0) {
             // d11 acts as a punishment on speed for flying up
             // sine takes the vertical component of the look vector, 0.04 is the horizontal slow factor
             // higher the pitch, higher the punishment
             // fly up speed punishment factor is 3.2 * 0.04 = 0.128
-            d11 = d3 * (double)(-Mth.sin(f4)) * 0.04;
-            motion = motion.add(-lookVec.x * d11 / d1, d11 * 3.2, -lookVec.z * d11 / d1);
+            d11 = d3 * (double)(-Mth.sin(f4)) * horizontalDeaccRate;
+            motion = motion.add(-lookVec.x * d11 / d1, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / d1);
         }
 
-        // looking downward, but the speed still goes up
+        // looking downward
         if (d1 > 0.0) {
             // accelerate without cost
-            motion = motion.add((lookVec.x / d1 * d3 - motion.x) * 0.1, 0.0, (lookVec.z / d1 * d3 - motion.z) * 0.1);
+            motion = motion.add((lookVec.x / d1 * d3 - motion.x) * horizontalAccRate, 0.0, (lookVec.z / d1 * d3 - motion.z) * horizontalAccRate);
         }
 
         // damp the motion
         // slow factor on Y axis is smaller than others
-//        livingEntity.setDeltaMovement(motion.multiply(frictionFactor));
-        motion = motion.multiply(frictionFactor);
+        livingEntity.setDeltaMovement(motion.multiply(frictionFactor));
+//        motion = motion.multiply(frictionFactor);
+        // In LivingEntity#aiStep, extra friction is applied when !this.isEffectiveAi()
+        // let's add it back
+        motion = motion.scale(1/0.98);
         onSetMotion.accept(livingEntity, motion);
         livingEntity.move(MoverType.SELF, livingEntity.getDeltaMovement());
         if (livingEntity.horizontalCollision && !livingEntity.level().isClientSide) {
