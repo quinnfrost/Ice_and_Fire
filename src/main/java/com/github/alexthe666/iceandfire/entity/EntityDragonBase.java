@@ -2112,7 +2112,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     strafing *= 0.1f;
                     // Diving is faster
                     // Todo: a new and better algorithm much like elytra flying
-                    glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d, -0.8d, 1.5d);
+//                    glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d, -0.8d, 1.5d);
                     speed += glidingSpeedBonus;
                     // Try to match the moving vector to the rider's look vector
                     forward = Mth.abs(Mth.cos(this.getXRot() * ((float) Math.PI / 180F)));
@@ -2134,7 +2134,12 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
                     }
 
+                    // Manual damping for debug
                     speed *= 0.5F;
+                    forward = 0;
+                    strafing = 0;
+                    vertical = 0;
+                    glidingSpeedBonus = 0;
 
                 }
                 // Speed bonus damping
@@ -2271,6 +2276,124 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         );
     }
 
+    public static Vec3 handleFallFlyingMotionAndMove(LivingEntity livingEntity, double gravity, Vec3 frictionFactor, BiConsumer<LivingEntity, Vec3> onSetMotion, BiConsumer<LivingEntity, Float> onCollide) {
+        // Delta movement
+        Vec3 motion = livingEntity.getDeltaMovement();
+        // Look vector, with a length of 1(ish)
+        Vec3 lookVec = livingEntity.getLookAngle();
+        // XRot to radian, XRot takes minus on looking upward
+        float xrot = livingEntity.getXRot() * 0.017453292F;
+        // Look vector horizontal length
+        // takes 1 when looking horizontal, 0 when looking vertical
+        double lookVecHorizontal = Math.sqrt(lookVec.x * lookVec.x + lookVec.z * lookVec.z);
+        // Horizontal motion
+        double motionHorizontal = motion.horizontalDistance();
+        // Look vector length, this should be 1
+        double lookVecLength = lookVec.length();
+        // Horizontal component of the look vector
+        double lookVecHorizontal2 = Math.cos((double)xrot);
+
+        // Specially: gravity = 0
+//        lookVec = lookVec.with(Direction.Axis.Y, 0.0).normalize();
+
+
+        // Squared?
+        // d5 is still the horizontal component of the look vector
+        // but smaller, making it response more like a quadratic curve
+        lookVecHorizontal2 = lookVecHorizontal2 * lookVecHorizontal2 * Math.min(1.0, lookVecLength / 0.4);
+        // Vertical acceleration based on the pitch
+        // -g + 0.75g * d5
+        // d5 takes 1 when looking horizontal, 0 when looking vertical
+        // which means looking horizontal will counter the g effect, but no more than a quarter
+        // looking upward with positive motion will decelerate, looking downward will accelerate
+        // this can be seen as the influence of the gravity and elytra combined
+        double verticalAcc = gravity * -1.0 + gravity * lookVecHorizontal2 * 0.75;
+        motion = livingEntity.getDeltaMovement().add(0.0, verticalAcc, 0.0);
+        double d11;
+        // d1 is always > 0
+        // when directly using lookVec for calculating motion, divided by d1 to normalize the value
+        // when going downward
+        float horizontalAccRate = 0.1f; // default 0.1
+        float horizontalDeaccRate = 0.04f;  // default 0.04
+        float verticalDeaccRate = 0.128f;   // default 0.128
+        double lookVecVertical = Mth.sin(xrot);
+        if (motion.y < 0.0 && lookVecHorizontal > 0.0) {
+            // this is used to convert vertical motion to horizontal motion
+            // when looking straight up/down, d11 takes 0, no speed in any axis
+            // when looking horizontal, d11 converts 0.1 of vertical motion to horizontal motion
+            // until there is no vertical motion left
+            if (xrot < 0.0F) {
+                // looking upward
+                d11 = motion.y * -horizontalAccRate * lookVecHorizontal2;
+                motion = motion.add(lookVec.x * d11 / lookVecHorizontal, d11, lookVec.z * d11 / lookVecHorizontal);
+
+                d11 = motionHorizontal * -lookVecVertical * horizontalDeaccRate;
+                motion = motion.add(-lookVec.x * d11 / lookVecHorizontal, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / lookVecHorizontal);
+
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+
+            } else {
+                // looking downward
+                d11 = motion.y * -horizontalAccRate * lookVecHorizontal2;
+                motion = motion.add(lookVec.x * d11 / lookVecHorizontal, d11, lookVec.z * d11 / lookVecHorizontal);
+
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+
+            }
+        } else if (motion.y >= 0.0) {
+            if (xrot < 0.0F) {
+                d11 = motionHorizontal * -lookVecVertical * horizontalDeaccRate;
+                motion = motion.add(-lookVec.x * d11 / lookVecHorizontal, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / lookVecHorizontal);
+
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+            } else {
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+
+            }
+        }
+
+        // looking upward
+//        if (xrot < 0.0F && lookVecHorizontal > 0.0) {
+//            // d11 acts as a punishment on speed for flying up
+//            // sine takes the vertical component of the look vector, 0.04 is the horizontal slow factor
+//            // higher the pitch, higher the punishment
+//            // fly up speed punishment factor is 3.2 * 0.04 = 0.128
+//            d11 = motionHorizontal * (double)(-Mth.sin(xrot)) * horizontalDeaccRate;
+//            motion = motion.add(-lookVec.x * d11 / lookVecHorizontal, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / lookVecHorizontal);
+//        }
+
+        if (lookVecHorizontal > 0.0) {
+            // accelerate without cost
+//            motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+        }
+
+        // damp the motion
+        // slow factor on Y axis is smaller than others
+        livingEntity.setDeltaMovement(motion.multiply(frictionFactor));
+//        motion = motion.multiply(frictionFactor);
+        // In LivingEntity#aiStep, extra friction is applied when !this.isEffectiveAi()
+        // let's add it back
+        motion = motion.scale(1/0.98);
+        onSetMotion.accept(livingEntity, motion);
+        livingEntity.move(MoverType.SELF, livingEntity.getDeltaMovement());
+        if (livingEntity.horizontalCollision && !livingEntity.level().isClientSide) {
+            // when flying into a wall, damage is calculated based on the deceleration provided by the wall
+            // d11 is the motion after the horizontal collision, which will contain zero after updated by this.move
+            d11 = livingEntity.getDeltaMovement().horizontalDistance();
+            // d7 the deceleration applied by the wall
+            double d7 = motionHorizontal - d11;
+            // damage value 10d7 - 3
+            float f1 = (float)(d7 * 10.0 - 3.0);
+            if (f1 > 0.0F) {
+//                    livingEntity.playSound(livingEntity.getFallDamageSound((int)f1), 1.0F, 1.0F);
+//                livingEntity.hurt(livingEntity.damageSources().flyIntoWall(), f1);
+                onCollide.accept(livingEntity, f1);
+            }
+        }
+
+        return motion;
+    }
+
     /**
      * Calculate elytra flying motion
      *
@@ -2282,7 +2405,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
      * @return
      * @see LivingEntity#travel(Vec3)
      */
-    public static Vec3 handleFallFlyingMotionAndMove(LivingEntity livingEntity, double gravity, Vec3 frictionFactor, BiConsumer<LivingEntity, Vec3> onSetMotion, BiConsumer<LivingEntity, Float> onCollide) {
+    public static Vec3 handleFallFlyingMotionAndMoveOrig(LivingEntity livingEntity, double gravity, Vec3 frictionFactor, BiConsumer<LivingEntity, Vec3> onSetMotion, BiConsumer<LivingEntity, Float> onCollide) {
         // Delta movement
         Vec3 motion = livingEntity.getDeltaMovement();
         // Look vector, with a length of 1(ish)
@@ -2298,12 +2421,6 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         double d4 = lookVec.length();
         // Horizontal component of the look vector
         double d5 = Math.cos((double)f4);
-
-        // Specially: gravity = 0
-        lookVec = lookVec.with(Direction.Axis.Y, 0.0).normalize();
-        f4 = 0;
-        d1 = 1;
-
 
         // Squared?
         // d5 is still the horizontal component of the look vector
