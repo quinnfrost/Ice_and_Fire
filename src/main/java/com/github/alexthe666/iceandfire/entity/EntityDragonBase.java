@@ -2313,9 +2313,18 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         // d1 is always > 0
         // when directly using lookVec for calculating motion, divided by d1 to normalize the value
         // when going downward
-        float horizontalAccRate = 0.1f; // default 0.1
+
+        // this value determines how much will slow when doing sharp turns
+        // however this seems also influence non-turning flying speed when value is high
+        float horizontalJerkSlowRate = 0.1f; // default 0.1
+        // this value determines how much y motion will be covert to horizontal motion
+        float horizontalAccConvertRate = 0.1f; // default 0.1
+        // this value determines the natural slowness when falling
+        float natualVerticalSlowRate = 0.1f;      // default 0.1
+        // determines how fast horizontal speed damps when pitching up/down
         float horizontalDeaccRate = 0.04f;  // default 0.04
-        float verticalDeaccRate = 0.128f;   // default 0.128
+        // this is how much y will slow when looking up
+        float verticalDeaccRate = 0.064f;   // default 0.128
         double lookVecVertical = Mth.sin(xrot);
         if (motion.y < 0.0 && lookVecHorizontal > 0.0) {
             // this is used to convert vertical motion to horizontal motion
@@ -2323,32 +2332,59 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             // when looking horizontal, d11 converts 0.1 of vertical motion to horizontal motion
             // until there is no vertical motion left
             if (xrot < 0.0F) {
-                // looking upward
-                d11 = motion.y * -horizontalAccRate * lookVecHorizontal2;
-                motion = motion.add(lookVec.x * d11 / lookVecHorizontal, d11, lookVec.z * d11 / lookVecHorizontal);
+                // looking upward, while dropping height
+                // usually happens just after pitching up
 
-                d11 = motionHorizontal * -lookVecVertical * horizontalDeaccRate;
-                motion = motion.add(-lookVec.x * d11 / lookVecHorizontal, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / lookVecHorizontal);
+                // speeds on horizontal, based on how fast is falling
+                // slows on vertical, at 0.1 of how fast is falling
+                motion = motion.add(lookVec.x * motion.y * -horizontalAccConvertRate,
+                                    motion.y * -natualVerticalSlowRate * lookVecHorizontal2,
+                                    lookVec.z * motion.y * -horizontalAccConvertRate
+                );
 
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+                // slows on horizontal, based on pitch
+                // add motion up, based on current horizontal speed
+                motion = motion.add(-lookVec.x * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal,
+                                    motionHorizontal * -lookVecVertical * verticalDeaccRate,
+                                    -lookVec.z * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal
+                );
+
+                // new speed direction? matching the speed vector to the look vector but with a factor?
+                // target vector is the motion vector with the direction of the look vector, minus its own motion, so it can be added
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
+                                    0.0,
+                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
+                );
 
             } else {
                 // looking downward
-                d11 = motion.y * -horizontalAccRate * lookVecHorizontal2;
-                motion = motion.add(lookVec.x * d11 / lookVecHorizontal, d11, lookVec.z * d11 / lookVecHorizontal);
-
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
-
+                motion = motion.add(lookVec.x * motion.y * -horizontalAccConvertRate,
+                                    motion.y * -natualVerticalSlowRate * lookVecHorizontal2,
+                                    lookVec.z * motion.y * -horizontalAccConvertRate
+                );
+                // this slows horizontal speed
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
+                                    0.0,
+                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
+                );
             }
         } else if (motion.y >= 0.0) {
             if (xrot < 0.0F) {
-                d11 = motionHorizontal * -lookVecVertical * horizontalDeaccRate;
-                motion = motion.add(-lookVec.x * d11 / lookVecHorizontal, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / lookVecHorizontal);
+                // exchange horizontal motion to vertical motion
+                motion = motion.add(-lookVec.x * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal,
+                                    motionHorizontal * -lookVecVertical * verticalDeaccRate,
+                                    -lookVec.z * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal
+                );
 
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
+                                    0.0,
+                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
+                );
             } else {
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
-
+                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
+                                    0.0,
+                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
+                );
             }
         }
 
@@ -2364,7 +2400,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 
         if (lookVecHorizontal > 0.0) {
             // accelerate without cost
-//            motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalAccRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalAccRate);
+//            motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate);
         }
 
         // damp the motion
