@@ -13,6 +13,7 @@ import com.github.alexthe666.iceandfire.client.model.util.LegSolverQuadruped;
 import com.github.alexthe666.iceandfire.datagen.tags.IafBlockTags;
 import com.github.alexthe666.iceandfire.datagen.tags.IafItemTags;
 import com.github.alexthe666.iceandfire.entity.ai.*;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.props.EntityDataProvider;
 import com.github.alexthe666.iceandfire.entity.tile.TileEntityDragonforgeInput;
 import com.github.alexthe666.iceandfire.entity.util.*;
@@ -2092,7 +2093,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 gliding = allowMousePitchControl && rider.isSprinting();
                 if (!gliding) {
                     // Mouse controlled yaw
-                    speed += glidingSpeedBonus;
+//                    speed += glidingSpeedBonus;
                     // Slower on going astern
                     forward *= rider.zza > 0 ? 1.0f : 0.5f;
                     // Slower on going sideways
@@ -2113,7 +2114,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     // Diving is faster
                     // Todo: a new and better algorithm much like elytra flying
 //                    glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d, -0.8d, 1.5d);
-                    speed += glidingSpeedBonus;
+//                    speed += glidingSpeedBonus;
                     // Try to match the moving vector to the rider's look vector
                     forward = Mth.abs(Mth.cos(this.getXRot() * ((float) Math.PI / 180F)));
                     vertical = Mth.abs(Mth.sin(this.getXRot() * ((float) Math.PI / 180F)));
@@ -2135,15 +2136,11 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     }
 
                     // Manual damping for debug
-                    speed *= 0.5F;
-                    forward = 0;
-                    strafing = 0;
-                    vertical = 0;
-                    glidingSpeedBonus = 0;
+                    speed *= 0.05F;
 
                 }
                 // Speed bonus damping
-                glidingSpeedBonus -= (float) (glidingSpeedBonus * 0.01d);
+//                glidingSpeedBonus -= (float) (glidingSpeedBonus * 0.01d);
 
                 if (this.isControlledByLocalInstance()) {
                     // Vanilla friction on Y axis is smaller, which will influence terminal speed for climbing and diving
@@ -2285,13 +2282,13 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         float xrot = livingEntity.getXRot() * 0.017453292F;
         // Look vector horizontal length
         // takes 1 when looking horizontal, 0 when looking vertical
-        double lookVecHorizontal = Math.sqrt(lookVec.x * lookVec.x + lookVec.z * lookVec.z);
+        double lookVecHorizontalLength = Math.sqrt(lookVec.x * lookVec.x + lookVec.z * lookVec.z);
         // Horizontal motion
         double motionHorizontal = motion.horizontalDistance();
         // Look vector length, this should be 1
         double lookVecLength = lookVec.length();
         // Horizontal component of the look vector
-        double lookVecHorizontal2 = Math.cos((double)xrot);
+        double lookVecHorizontalComponentSqr = Math.cos((double)xrot);
 
         // Specially: gravity = 0
 //        lookVec = lookVec.with(Direction.Axis.Y, 0.0).normalize();
@@ -2300,14 +2297,19 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         // Squared?
         // d5 is still the horizontal component of the look vector
         // but smaller, making it response more like a quadratic curve
-        lookVecHorizontal2 = lookVecHorizontal2 * lookVecHorizontal2 * Math.min(1.0, lookVecLength / 0.4);
+        lookVecHorizontalComponentSqr = lookVecHorizontalComponentSqr * lookVecHorizontalComponentSqr * Math.min(1.0, lookVecLength / 0.4);
         // Vertical acceleration based on the pitch
         // -g + 0.75g * d5
         // d5 takes 1 when looking horizontal, 0 when looking vertical
         // which means looking horizontal will counter the g effect, but no more than a quarter
         // looking upward with positive motion will decelerate, looking downward will accelerate
         // this can be seen as the influence of the gravity and elytra combined
-        double verticalAcc = gravity * -1.0 + gravity * lookVecHorizontal2 * 0.75;
+        double verticalAcc = gravity * -1.0 + gravity * lookVecHorizontalComponentSqr * 0.75;
+        if (xrot < 0.0) {
+            verticalAcc = 0;
+        }
+        // gravity and wing
+        // when disabled, levitate
         motion = livingEntity.getDeltaMovement().add(0.0, verticalAcc, 0.0);
         double d11;
         // d1 is always > 0
@@ -2317,6 +2319,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         // this value determines how much will slow when doing sharp turns
         // however this seems also influence non-turning flying speed when value is high
         float horizontalJerkSlowRate = 0.1f; // default 0.1
+        float verticalJerkSlowRate = 0.1f;   // default 0.1
         // this value determines how much y motion will be covert to horizontal motion
         float horizontalAccConvertRate = 0.1f; // default 0.1
         // this value determines the natural slowness when falling
@@ -2325,88 +2328,78 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         float horizontalDeaccRate = 0.04f;  // default 0.04
         // this is how much y will slow when looking up
         float verticalDeaccRate = 0.064f;   // default 0.128
-        double lookVecVertical = Mth.sin(xrot);
-        if (motion.y < 0.0 && lookVecHorizontal > 0.0) {
+        // take minus when looking upward
+        double lookVecVerticalComponent = Mth.sin(xrot);
+        if (motion.y < 0.0 && lookVecHorizontalLength > 0.0) {
             // this is used to convert vertical motion to horizontal motion
             // when looking straight up/down, d11 takes 0, no speed in any axis
             // when looking horizontal, d11 converts 0.1 of vertical motion to horizontal motion
             // until there is no vertical motion left
-            if (xrot < 0.0F) {
-                // looking upward, while dropping height
-                // usually happens just after pitching up
+            // looking upward, while dropping height
+            // usually happens just after pitching up
 
-                // speeds on horizontal, based on how fast is falling
-                // slows on vertical, at 0.1 of how fast is falling
-                motion = motion.add(lookVec.x * motion.y * -horizontalAccConvertRate,
-                                    motion.y * -natualVerticalSlowRate * lookVecHorizontal2,
-                                    lookVec.z * motion.y * -horizontalAccConvertRate
-                );
+            // speeds on horizontal, based on how fast is falling
+            // slows on vertical, at 0.1 of how fast is falling
 
-                // slows on horizontal, based on pitch
-                // add motion up, based on current horizontal speed
-                motion = motion.add(-lookVec.x * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal,
-                                    motionHorizontal * -lookVecVertical * verticalDeaccRate,
-                                    -lookVec.z * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal
-                );
-
-                // new speed direction? matching the speed vector to the look vector but with a factor?
-                // target vector is the motion vector with the direction of the look vector, minus its own motion, so it can be added
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
-                                    0.0,
-                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
-                );
-
-            } else {
-                // looking downward
-                motion = motion.add(lookVec.x * motion.y * -horizontalAccConvertRate,
-                                    motion.y * -natualVerticalSlowRate * lookVecHorizontal2,
-                                    lookVec.z * motion.y * -horizontalAccConvertRate
-                );
-                // this slows horizontal speed
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
-                                    0.0,
-                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
-                );
-            }
-        } else if (motion.y >= 0.0) {
-            if (xrot < 0.0F) {
-                // exchange horizontal motion to vertical motion
-                motion = motion.add(-lookVec.x * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal,
-                                    motionHorizontal * -lookVecVertical * verticalDeaccRate,
-                                    -lookVec.z * motionHorizontal * -lookVecVertical * horizontalDeaccRate / lookVecHorizontal
-                );
-
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
-                                    0.0,
-                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
-                );
-            } else {
-                motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate,
-                                    0.0,
-                                    (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate
-                );
-            }
+            // cost vertical speed for horizontal motion
+            // when disabled, no horizontal speed up when diving
+            motion = motion.add(lookVec.x * motion.y * -horizontalAccConvertRate,
+                                motion.y * -natualVerticalSlowRate * lookVecHorizontalComponentSqr,
+                                lookVec.z * motion.y * -horizontalAccConvertRate
+            );
         }
 
         // looking upward
-//        if (xrot < 0.0F && lookVecHorizontal > 0.0) {
-//            // d11 acts as a punishment on speed for flying up
-//            // sine takes the vertical component of the look vector, 0.04 is the horizontal slow factor
-//            // higher the pitch, higher the punishment
-//            // fly up speed punishment factor is 3.2 * 0.04 = 0.128
-//            d11 = motionHorizontal * (double)(-Mth.sin(xrot)) * horizontalDeaccRate;
-//            motion = motion.add(-lookVec.x * d11 / lookVecHorizontal, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / lookVecHorizontal);
-//        }
+        if (xrot < 0.0F && lookVecHorizontalLength > 0.0) {
+            // d11 acts as a punishment on speed for flying up
+            // sine takes the vertical component of the look vector, 0.04 is the horizontal slow factor
+            // higher the pitch, higher the punishment
+            // fly up speed punishment factor is 3.2 * 0.04 = 0.128
 
-        if (lookVecHorizontal > 0.0) {
-            // accelerate without cost
-//            motion = motion.add((lookVec.x / lookVecHorizontal * motionHorizontal - motion.x) * horizontalJerkSlowRate, 0.0, (lookVec.z / lookVecHorizontal * motionHorizontal - motion.z) * horizontalJerkSlowRate);
+
+            // cost horizontal speed for y motion up
+            // when disabled, looking up will not add y motion, nor horizontal speed slowed
+            motion = motion.add(-lookVec.x * motionHorizontal * -lookVecVerticalComponent * horizontalDeaccRate / lookVecHorizontalLength,
+                                motionHorizontal * -lookVecVerticalComponent * verticalDeaccRate,
+                                -lookVec.z * motionHorizontal * -lookVecVerticalComponent * horizontalDeaccRate / lookVecHorizontalLength
+            );
+//            motion = motion.add(-lookVec.x * motionHorizontal * -lookVecVerticalComponent * horizontalDeaccRate / lookVecHorizontalLength,
+//                                lookVec.y * motionHorizontal * -lookVecVerticalComponent * verticalDeaccRate,
+//                                -lookVec.z * motionHorizontal * -lookVecVerticalComponent * horizontalDeaccRate / lookVecHorizontalLength
+//            );
+//            d11 = motionHorizontal * (double)(-Mth.sin(xrot)) * horizontalDeaccRate;
+//            motion = motion.add(-lookVec.x * d11 / lookVecHorizontalLength, d11 * (verticalDeaccRate / horizontalDeaccRate), -lookVec.z * d11 / lookVecHorizontalLength);
         }
+
+        if (lookVecHorizontalLength > 0.0) {
+            // accelerate without cost
+
+            // redirect horizontal motion
+            // when disabled, turning will not affect current motion, only new speed is added as a vector combined with current motion
+            // always decelerates
+            Vec3 vec3 = new Vec3((lookVec.x / lookVecHorizontalLength * motion.horizontalDistance() - motion.x) * horizontalJerkSlowRate,
+                                 0.0,
+                                 (lookVec.z / lookVecHorizontalLength * motion.horizontalDistance() - motion.z) * horizontalJerkSlowRate);
+            motion = motion.add(
+                    vec3
+            );
+        }
+
+//        if (lookVecHorizontalLength >= 0.0) {
+//            double f = (-lookVecVerticalComponent * motion.length() - motion.y) * verticalJerkSlowRate * lookVecHorizontalLength;
+//            DebugUtils.custom_debug_message = String.format("%.3f", f);
+//            Vec3 vec3 = new Vec3(
+//                    0.0,
+//                    f,
+//                    0.0
+//            );
+//            motion = motion.add(vec3);
+//        }
 
         // damp the motion
         // slow factor on Y axis is smaller than others
-        livingEntity.setDeltaMovement(motion.multiply(frictionFactor));
-//        motion = motion.multiply(frictionFactor);
+//        livingEntity.setDeltaMovement(motion.multiply(frictionFactor));
+        motion = motion.multiply(frictionFactor);
         // In LivingEntity#aiStep, extra friction is applied when !this.isEffectiveAi()
         // let's add it back
         motion = motion.scale(1/0.98);
