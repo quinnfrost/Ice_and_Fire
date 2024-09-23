@@ -8,6 +8,7 @@ import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.messages.Message
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.AdvancedPathNavigate;
 import com.github.alexthe666.iceandfire.pathfinding.raycoms.pathjobs.AbstractPathJob;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,6 +29,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class DebugUtils {
+    public static String custom_debug_message = "";
 
     private static Map<Player, UUID> getTrackingMap() {
         return AbstractPathJob.trackingMap;
@@ -157,6 +159,11 @@ public class DebugUtils {
         )) / 0.05;
     }
 
+    public static double getHorizontalSpeed(LivingEntity livingEntity) {
+        // divide by 0.05 to get blocks per second
+        return livingEntity.position().with(Direction.Axis.Y, 0).distanceTo(new Vec3(livingEntity.xOld, livingEntity.yOld, livingEntity.zOld).with(Direction.Axis.Y, 0)) / 0.05;
+    }
+
     public static boolean hasMemoryItem(Mob mob) {
         return !mob.getBrain().getMemories().isEmpty();
     }
@@ -227,11 +234,13 @@ public class DebugUtils {
                        ) + (mobEntity.getId() == player.getId() ? "" : String.format("(%.2f)", mobEntity.distanceTo(player))),
                        String.format("Rot: %.2f, %.2f ", mobEntity.getXRot(), mobEntity.getYRot())
                                + String.format("(%s)", mobEntity.getDirection()),
-                       "Motion: " + String.format("%.3f, %.3f, %.3f (%.2f)",
+                       "Motion: " + String.format("%.3f, %.3f, %.3f [XZ:%.2f] (%.2f [%.2f])",
                                                   mobEntity.getDeltaMovement().x,
                                                   mobEntity.getDeltaMovement().y,
                                                   mobEntity.getDeltaMovement().z,
-                                                  getSpeed(mobEntity)
+                                                  mobEntity.getDeltaMovement().horizontalDistance(),
+                                                  getSpeed(mobEntity),
+                                                  getHorizontalSpeed(mobEntity)
                        )
 
         );
@@ -239,7 +248,8 @@ public class DebugUtils {
 
     public static List<String> getRotationInfo(PathfinderMob mob, Player player) {
         return List.of(
-                "Facing: " + String.format("%s", formatVector(mob.getLookAngle())),
+                "Facing: " + String.format("%s", formatVector(mob.getLookAngle()))
+                        + String.format(" [XZ:%.2f]", mob.getLookAngle().horizontalDistance()),
                 String.format("Rot: %.2f(%.2f), %.2f(%.2f) ", mob.getXRot(), mob.xRotO, mob.getYRot(), mob.yRotO)
                         + String.format("(%s)", mob.getDirection()),
                 String.format("yBodyRot: %.2f(%.2f) ", mob.yBodyRot, mob.yBodyRotO) + String.format(
@@ -423,6 +433,10 @@ public class DebugUtils {
         list.addAll(getAttackTargetInfo(mobEntity, player));
         list.addAll(getDestinationInfo(mobEntity, player));
         list.addAll(getFlags(mobEntity, player));
+        if (!custom_debug_message.isEmpty()) {
+            list.add("----------");
+            list.add(custom_debug_message);
+        }
 
         return list;
     }
