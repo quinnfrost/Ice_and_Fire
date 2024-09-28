@@ -1784,6 +1784,10 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     @Override
     public void aiStep() {
         super.aiStep();
+        // for test purpose
+        if (!this.isEffectiveAi()) {
+            this.setDeltaMovement(this.getDeltaMovement().scale(1/0.98));
+        }
         this.prevModelDeadProgress = this.modelDeadProgress;
         this.prevDiveProgress = this.diveProgress;
         prevAnimationProgresses[0] = this.sitProgress;
@@ -2156,6 +2160,10 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     } else {
                         handleFallFlyingMotionAndMove(this, !gliding);
                     }
+//                    DebugUtils.custom_debug_message = String.format("%.2f", DebugUtils.getSpeed(this) / this.getDeltaMovement().length());
+                    DebugUtils.custom_debug_message = String.format("%.2f", getSpeedPercent(this.getDeltaMovement()));
+
+
 
                     Vec3 currentMotion = this.getDeltaMovement();
                     if (this.horizontalCollision) {
@@ -2254,22 +2262,147 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         );
     }
 
+    public static float TICKS_PER_SECOND = 20f;
+    public static float BASE_SPEED_RATIO = 0.15f * TICKS_PER_SECOND;
+    public static float BASE_SPEED_RATIO_PER_TICK = 0.15f;
+
+    public static float getSpeedBlockPerSecond(float speedPercentPerSecond) {
+        return speedPercentPerSecond / 100 * BASE_SPEED_RATIO;
+    }
+
+    public static float getSpeedBlockPerTick(float speedPercentPerTick) {
+        return speedPercentPerTick / 100 * BASE_SPEED_RATIO_PER_TICK;
+    }
+
+    public static float getSpeedPercent(float speedBlockPerSecond) {
+        return speedBlockPerSecond / BASE_SPEED_RATIO * 100;
+    }
+
+    public static float getSpeedPercent(Vec3 speedVector) {
+        return getSpeedPercent((float) speedVector.length()) * TICKS_PER_SECOND;
+    }
+
+    public static Vec3 scaleToSpeedPercent(Vec3 speedVector, float speedPercent) {
+        return speedVector.normalize().scale(getSpeedBlockPerTick(speedPercent));
+    }
+
+    public static float PITCH_NEUTRAL = 0;
+    public static float ACC_MAX_PERCENT = 310;
+    public static float DEACC_MAX_PERCENT = 310;
+    public static float TERMINAL_SPEED_PERCENT = 930;
+
+    public static float MAX_SPEED_PERCENT = 1430;
+    public static float OVERSPEED_SLOW_PERCENT = 100;
+
+    public static float SPEED_FOLLOW_FACTOR = 0.1f;
+    public static float HORIZONTAL_SPEED_CONVERT_RATIO = 0.1f;
+
+    public static Vec3 handleWowFlyingMotionAndMove(LivingEntity livingEntity) {
+        final boolean DRY_RUN = false;
+        // basic sprint speed as 100%
+        // block per second
+        float baseSpeed = 5.61f;
+        // block per tick
+        baseSpeed /= 20.0f;
+
+        Vec3 motion = livingEntity.getDeltaMovement();
+        Vec3 lookVec = livingEntity.getLookAngle();
+        // dragon pitch in degree
+        float pitch = -livingEntity.getXRot();
+        float relPitch = (pitch - PITCH_NEUTRAL) / 90f;
+
+
+
+        float accFactor = 0.1f;
+        Vec3 vecMod = Vec3.ZERO;
+
+        // diving
+        if (relPitch < 0) {
+            if (motion.y < 0) {
+//                vecMod = vecMod.add(
+//                        motion.normalize().scale(baseSpeed * accFactor * -relPitch)
+//                );
+                vecMod = scaleToSpeedPercent(motion, -relPitch * ACC_MAX_PERCENT / TICKS_PER_SECOND);
+                motion = motion.add(vecMod);
+                // match speed to look vector
+                //! no deceleration should be called outside from travel()
+                vecMod = lookVec.normalize().scale(motion.length()).subtract(motion).scale(SPEED_FOLLOW_FACTOR);
+                motion = motion.add(vecMod);
+            } else {
+                vecMod = new Vec3(
+                        0.0,
+                         getSpeedBlockPerTick(relPitch * ACC_MAX_PERCENT / TICKS_PER_SECOND),
+                        0.0
+                );
+                motion = motion.add(vecMod);
+
+                vecMod = new Vec3(
+                        (lookVec.x * motion.horizontalDistance() - motion.x) * SPEED_FOLLOW_FACTOR,
+                        0.0,
+                        (lookVec.z * motion.horizontalDistance() - motion.z) * SPEED_FOLLOW_FACTOR
+                );
+                motion = motion.add(vecMod);
+            }
+        }
+        // climbing
+        else if (relPitch >= 0) {
+            if (motion.y < 0) {
+                // stall
+                // pitch up with speed goes down, y speed max out at -114%
+                vecMod = new Vec3(
+                    0.0,
+                    getSpeedBlockPerTick(relPitch * ACC_MAX_PERCENT / TICKS_PER_SECOND),
+                    0.0
+                );
+                motion = motion.add(vecMod);
+
+                vecMod = new Vec3(
+                        (lookVec.x * motion.horizontalDistance() - motion.x) * SPEED_FOLLOW_FACTOR,
+                        0.0,
+                        (lookVec.z * motion.horizontalDistance() - motion.z) * SPEED_FOLLOW_FACTOR
+                );
+                motion = motion.add(vecMod);
+
+
+            } else {
+                vecMod = motion.normalize().reverse().scale(baseSpeed * accFactor * relPitch);
+                motion = motion.add(vecMod);
+
+                // match speed to look vector
+                vecMod = lookVec.normalize().reverse().scale(motion.length()).subtract(motion).scale(SPEED_FOLLOW_FACTOR);
+                motion = motion.add(vecMod);
+            }
+        }
+
+
+        // friction
+        float slowRate = 0.98f;
+//        slowRate /= 20.0f;
+        Vec3 friction = new Vec3(1.0,1.0,1.0).scale(slowRate);
+
+//        motion = motion.scale(slowRate);
+
+        // set motion
+//        motion = motion.scale(1/0.98);
+        livingEntity.setDeltaMovement(motion);
+
+        if (!DRY_RUN) {
+            livingEntity.move(MoverType.SELF, livingEntity.getDeltaMovement());
+        }
+
+        return motion;
+    }
+
     public static Vec3 handleFallFlyingMotionAndMove(LivingEntity livingEntity, boolean noGravity) {
         double g = 0.08;
         AttributeInstance gravity = livingEntity.getAttribute((Attribute) ForgeMod.ENTITY_GRAVITY.get());
         g = gravity.getValue();
 
-        return handleFallFlyingMotionAndMove(livingEntity,
-                                             noGravity ? 0 : g,
-                                             new Vec3(0.9900000095367432, 0.9800000190734863, 0.9900000095367432),
-                                             ((livingEntity1, motion) -> {
-                                                 livingEntity1.setDeltaMovement(motion);
-                                             }),
-                                             (livingEntity1, deltaMotion) -> {
-                                                 livingEntity1.hurt(livingEntity1.damageSources().flyIntoWall(),
-                                                                    deltaMotion
-                                                 );
-                                             }
+//        handleWowFlyingMotionAndMove(livingEntity, noGravity ? 0 : g, new Vec3(0.9900000095367432, 0.9800000190734863, 0.9900000095367432), ((livingEntity1, motion) -> {
+//        }), (livingEntity1, deltaMotion) -> {
+//        });
+
+        return handleWowFlyingMotionAndMove(livingEntity
         );
     }
 
@@ -2558,6 +2691,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             }
         } else {
             // Damp the pitch once on ground
+            // Todo: remove
             if (Mth.abs(this.getDragonPitch()) < 1) {
                 this.setDragonPitch(0);
             } else {
