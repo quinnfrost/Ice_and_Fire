@@ -637,6 +637,10 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return (entityData.get(CONTROL_STATE) >> 4 & 1) == 1;
     }
 
+    public boolean isSprinting() {
+        return (entityData.get(CONTROL_STATE) >> 5 & 1) == 1;
+    }
+
     @Override
     public void up(boolean up) {
         setStateField(0, up);
@@ -662,6 +666,12 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         setStateField(4, dismount);
     }
 
+    // TODO: Is this really needed?
+    @Override
+    public void sprint(boolean sprint) {
+        setStateField(5, sprint);
+    }
+
     private void setStateField(int i, boolean newState) {
         byte prevState = entityData.get(CONTROL_STATE);
         if (newState) {
@@ -679,6 +689,14 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     @Override
     public void setControlState(byte state) {
         entityData.set(CONTROL_STATE, state);
+    }
+
+    /**
+     * Required in LocalPlayer#canStartSprinting
+     */
+    @Override
+    public boolean canSprint() {
+        return true;
     }
 
     public int getCommand() {
@@ -2061,6 +2079,8 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     this.setTackling(false);
                 }
 
+                // Todo: use ICustomMoveController#sprint for custom control
+                // Todo: FOV effect visual hint
                 gliding = allowMousePitchControl && rider.isSprinting();
                 if (!gliding) {
                     // Mouse controlled yaw
@@ -2161,7 +2181,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             // Walking control
             else {
                 double forward = rider.zza;
-                double strafing = rider.xxa * 0.5f;
+                double strafing = rider.xxa;
                 // Inherit y motion for dropping
                 double vertical = pTravelVector.y;
                 float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
@@ -2174,6 +2194,8 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 forward *= rider.isSprinting() ? 1.2f : 1.0f;
                 // Slower going back
                 forward *= rider.zza > 0 ? 1.0f : 0.2f;
+                // Slower going sideway
+                strafing *= 0.05f;
 
                 if (this.isControlledByLocalInstance()) {
                     this.setSpeed(speed);
@@ -2425,12 +2447,16 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 }
                 super.move(pType, pPos);
             } else {
+                // Use noPhysics tag to disable server side collision check
+                // TODO: A better way
+                this.noPhysics = true;
                 super.move(pType, pPos);
             }
 
             // Set no gravity flag to prevent getting kicked by flight disabled servers
             this.setNoGravity(this.isHovering() || this.isFlying());
         } else {
+            this.noPhysics = false;
             // The flight mgr is not ready for noGravity
             this.setNoGravity(false);
             super.move(pType, pPos);
