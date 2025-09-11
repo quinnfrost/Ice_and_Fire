@@ -29,7 +29,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class DebugUtils {
-    public static String custom_debug_message = "";
+    public static Map<String, String> custom_debug_message = new HashMap<>();
 
     private static Map<Player, UUID> getTrackingMap() {
         return AbstractPathJob.trackingMap;
@@ -435,7 +435,9 @@ public class DebugUtils {
         list.addAll(getFlags(mobEntity, player));
         if (!custom_debug_message.isEmpty()) {
             list.add("----------");
-            list.add(custom_debug_message);
+            list.addAll(custom_debug_message.entrySet().stream()
+                    .map(e -> e.getKey() + ": " + e.getValue())
+                    .collect(Collectors.toList()));
         }
 
         return list;
