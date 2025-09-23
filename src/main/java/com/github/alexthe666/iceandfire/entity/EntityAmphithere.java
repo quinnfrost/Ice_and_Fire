@@ -31,7 +31,9 @@ import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.FlyingMoveControl;
@@ -1030,8 +1032,9 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
      * Use super.travel(Vec3) for vanilla moving logic in {@link LivingEntity#travel(Vec3)}, which makes you move like those regular animals <br>
      * In case any air-break happens, {@link #setDeltaMovement(Vec3)} might be called by server, resulting motion being overridden on client <br>
      * Check {@link #tickRidden(Player, Vec3)}, {@link #aiStep()} or {@link #tick()} for any misused setDeltaMovement() calls, all of them should be masked in {@link #isControlledByLocalInstance()} <br>
-     * @see LivingEntity#travel(Vec3)
+     *
      * @param pTravelVector
+     * @see LivingEntity#travel(Vec3)
      */
     @Override
     public void travel(@NotNull Vec3 pTravelVector) {
@@ -1241,13 +1244,97 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         }
     }
 
+    public void calculateFallflyingMotion() {
+        // 基础重力（受 Forge 重力属性影响）
+        double gravityAcceleration = 0.08D;
+        AttributeInstance gravityAttr = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get());
+        gravityAcceleration = gravityAttr.getValue();
+
+        // 统计慢速下落距离（原版用于减伤判断/缓降效果支持）
+        this.checkSlowFallDistance();
+
+        // 当前速度向量与朝向向量
+        Vec3 currentVelocity = this.getDeltaMovement();
+        Vec3 lookVector = this.getLookAngle();
+
+        // 俯仰角弧度（XRot 负=抬头，正=俯冲）
+        float pitchRad = this.getXRot() * ((float) Math.PI / 180F);
+
+        // 视线在水平面的投影长度（用于判断水平方向是否有指向性）
+        double lookHorizLen = Math.sqrt(lookVector.x * lookVector.x + lookVector.z * lookVector.z);
+
+        // 当前水平速度大小
+        double horizontalSpeed = currentVelocity.horizontalDistance();
+
+        // 视线向量长度（接近 1）
+        double lookLen = lookVector.length();
+
+        // 基于俯仰角的升力系数（抬头时更接近 1，俯冲时下降）
+        double pitchLiftFactor = Math.cos(pitchRad);
+        pitchLiftFactor = pitchLiftFactor * pitchLiftFactor * Math.min(1.0D, lookLen / 0.4D);
+
+        // 模拟升力 + 重力：在向量 Y 分量上添加（pitchLiftFactor 强则减缓下坠）
+        currentVelocity = this.getDeltaMovement()
+                .add(0.0D, gravityAcceleration * (-1.0D + pitchLiftFactor * 0.75D), 0.0D);
+
+        // 下降且存在水平朝向时，给予少量向前滑翔（减少纯垂直坠落感）
+        if (currentVelocity.y < 0.0D && lookHorizLen > 0.0D) {
+            double forwardGlideAdjust = currentVelocity.y * -0.1D * pitchLiftFactor;
+            currentVelocity = currentVelocity.add(
+                    lookVector.x * forwardGlideAdjust / lookHorizLen,
+                    forwardGlideAdjust,
+                    lookVector.z * forwardGlideAdjust / lookHorizLen
+            );
+        }
+
+        // 俯冲（pitchRad > 0）时：基于俯冲角将部分水平速度转为强力的下冲+前推，增强加速感
+        if (pitchRad < 0.0F && lookHorizLen > 0.0D) {
+            double diveAdjust = horizontalSpeed * (-Mth.sin(pitchRad)) * 0.04D;
+            currentVelocity = currentVelocity.add(
+                    -lookVector.x * diveAdjust / lookHorizLen,
+                    diveAdjust * 3.2D,
+                    -lookVector.z * diveAdjust / lookHorizLen
+            );
+        }
+
+        // 将水平速度慢慢引导贴合视线方向（缓慢自动纠偏）
+        if (lookHorizLen > 0.0D) {
+            currentVelocity = currentVelocity.add(
+                    (lookVector.x / lookHorizLen * horizontalSpeed - currentVelocity.x) * 0.1D,
+                    0.0D,
+                    (lookVector.z / lookHorizLen * horizontalSpeed - currentVelocity.z) * 0.1D
+            );
+        }
+
+        // 空气阻力：Y 阻力略高，模拟缓慢拉升或坠落过程
+        this.setDeltaMovement(currentVelocity.multiply(0.99D, 0.98D, 0.99D));
+
+        // 按更新后的速度移动
+        this.move(MoverType.SELF, this.getDeltaMovement());
+
+        // 水平碰撞后（撞墙）可计算一次速度损失（保留结构以便未来加特效或伤害）
+        if (this.horizontalCollision && !this.level().isClientSide) {
+            double postCollideHorizSpeed = this.getDeltaMovement().horizontalDistance();
+            double speedLoss = horizontalSpeed - postCollideHorizSpeed;
+            float collisionSeverity = (float) (speedLoss * 10.0D - 3.0D);
+            // 预留：播放音效/受伤逻辑（见原版 Elytra）
+            // if (collisionSeverity > 0.0F) { ... }
+        }
+
+        // 落地后关闭“鞘翅状态”标记（原版 7 号 flag）
+        if (this.onGround() && !this.level().isClientSide) {
+            this.setSharedFlag(7, false);
+        }
+    }
+
     /**
      * This method handles rider specific stuff, except basic movement control <br>
      * Rider specific actions such as rotation following and jump should be handled here <br>
      * If special movement is needed, make sure it's called only on client using {@link #isControlledByLocalInstance()}
-     * @see net.minecraft.world.entity.animal.horse.Horse#tickRidden(Player, Vec3)
+     *
      * @param player
      * @param travelVector
+     * @see net.minecraft.world.entity.animal.horse.Horse#tickRidden(Player, Vec3)
      */
     @Override
     protected void tickRidden(@NotNull Player player, @NotNull Vec3 travelVector) {

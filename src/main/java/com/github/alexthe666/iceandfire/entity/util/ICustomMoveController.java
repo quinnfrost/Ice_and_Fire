@@ -19,6 +19,8 @@ public interface ICustomMoveController {
     default void sprint(boolean sprint) {
         // Not implemented
         // Todo :: Implement this for everyone, or do we really need this?
+        // Todo :: isSprinting() is a vanilla method, separate it
+        // Todo :: setStateField() allow for bit operations
     }
 
 

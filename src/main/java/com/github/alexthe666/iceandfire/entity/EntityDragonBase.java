@@ -2195,6 +2195,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 // Slower going back
                 forward *= rider.zza > 0 ? 1.0f : 0.2f;
                 // Slower going sideway
+                // TODO: this value needs tweak
                 strafing *= 0.05f;
 
                 if (this.isControlledByLocalInstance()) {
