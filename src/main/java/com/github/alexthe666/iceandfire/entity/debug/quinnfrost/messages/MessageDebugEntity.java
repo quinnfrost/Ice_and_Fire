@@ -112,7 +112,7 @@ public class MessageDebugEntity {
                                                                                           clientSidePlayer
                         );
                         clientSidePlayer.displayClientMessage(
-                                Component.nullToEmpty(DebugUtils.getPositionInfo(clientSidePlayer, clientSidePlayer).get(0) + String.format(" %s", DebugUtils.getPositionInfo(clientSidePlayer,clientSidePlayer).get(2))),
+                                Component.nullToEmpty(DebugUtils.getPositionInfo(clientSidePlayer, clientSidePlayer).get(0) + String.format(" %s %s", DebugUtils.getPositionInfo(clientSidePlayer,clientSidePlayer).get(2), DebugUtils.getRotationInfo(clientSidePlayer, clientSidePlayer).get(0))),
                                 true
                         );
                     } else {

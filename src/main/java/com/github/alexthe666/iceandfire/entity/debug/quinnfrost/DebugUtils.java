@@ -246,16 +246,16 @@ public class DebugUtils {
         );
     }
 
-    public static List<String> getRotationInfo(PathfinderMob mob, Player player) {
+    public static List<String> getRotationInfo(LivingEntity livingEntity, Player player) {
         return List.of(
-                "Facing: " + String.format("%s", formatVector(mob.getLookAngle()))
-                        + String.format(" [XZ:%.2f]", mob.getLookAngle().horizontalDistance()),
-                String.format("Rot: %.2f(%.2f), %.2f(%.2f) ", mob.getXRot(), mob.xRotO, mob.getYRot(), mob.yRotO)
-                        + String.format("(%s)", mob.getDirection()),
-                String.format("yBodyRot: %.2f(%.2f) ", mob.yBodyRot, mob.yBodyRotO) + String.format(
+                "Facing: " + String.format("%s", formatVector(livingEntity.getLookAngle()))
+                        + String.format(" [XZ:%.2f]", livingEntity.getLookAngle().horizontalDistance()),
+                String.format("Rot: %.2f(%.2f), %.2f(%.2f) ", livingEntity.getXRot(), livingEntity.xRotO, livingEntity.getYRot(), livingEntity.yRotO)
+                        + String.format("(%s)", livingEntity.getDirection()),
+                String.format("yBodyRot: %.2f(%.2f) ", livingEntity.yBodyRot, livingEntity.yBodyRotO) + String.format(
                         "yHeadRot: %.2f(%.2f)",
-                        mob.yHeadRot,
-                        mob.yHeadRotO
+                        livingEntity.yHeadRot,
+                        livingEntity.yHeadRotO
                 )
 
         );
