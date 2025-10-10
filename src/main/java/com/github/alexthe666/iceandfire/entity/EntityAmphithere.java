@@ -1021,7 +1021,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
     public boolean allowMousePitchControl = true;
     public boolean allowAmphithereLeveledGlide = true;
     protected boolean gliding = false;
-//    protected float glidingSpeedBonus = 0;
+    //    protected float glidingSpeedBonus = 0;
     public double minimumSpeed = .2f;
     public double maximumSpeed = .6f;
 
@@ -1095,6 +1095,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 
                 Vec3 lookVec = rider.getLookAngle();
                 float pitch = rider.getXRot();
+                boolean disableGravity = false;
 
 
                 // TODO: replace with attribute FLYING_SPEED or getRiddenSpeed()
@@ -1117,8 +1118,16 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 
                 gliding = allowMousePitchControl && this.isSprinting();
                 if (!gliding) {
+                    // reset look vector to horizontal
+                    pitch = 0;
+                    lookVec.multiply(1f, 0f, 1f).normalize();
                     // If w is pressed
-                    forward *= rider.zza > 0 ? 0.5f : 0.2f;
+                    if (rider.zza > 0) {
+                        forward *= 0.5f;
+                        disableGravity = true;
+                    } else {
+                        forward *= 0.2f;
+                    }
                     // Slower on going sideways
                     strafing *= 0.4f;
                     if (isGoingUp() && !isGoingDown()) {
@@ -1165,7 +1174,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     this.moveRelative(speed * 0.1F, new Vec3(strafing, vertical, forward));
 //                    this.moveRelative(airSpeed, new Vec3(0, vertical, 0));
 //                    this.move(MoverType.SELF, this.getDeltaMovement());
-                    calculateFallflyingMotion(lookVec, pitch, new Vec3(0.99d, 0.98d, 0.99d));
+                    calculateFallflyingMotion(lookVec, pitch, new Vec3(0.99d, 0.99d, 0.99d), disableGravity, disableGravity);
 //                    this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
 
 //                    Vec3 currentMotion = this.getDeltaMovement();
@@ -1269,6 +1278,20 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
      * This method will update current motion as fall-flying
      */
     public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction) {
+        calculateFallflyingMotion(targetVector, xRot, friction, false);
+    }
+
+    /**
+     * This method will update current motion as fall-flying
+     */
+    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, boolean disableGravity) {
+        calculateFallflyingMotion(targetVector, xRot, friction, disableGravity, false);
+    }
+
+    /**
+     * This method will update current motion as fall-flying
+     */
+    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, boolean disableGravity, boolean forceSpeedToLookVec) {
         // 基础重力（受 Forge 重力属性影响）
         double gravityAcceleration = 0.08D;
         AttributeInstance gravityAttr = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get());
@@ -1297,9 +1320,17 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         double pitchLiftFactor = Math.cos(pitchRad);
         pitchLiftFactor = pitchLiftFactor * pitchLiftFactor * Math.min(1.0D, lookLen / 0.4D);
 
+        // 根据 disableGravity 决定是否应用基础重力项
+        double gravityEffect;
+        if (disableGravity) {
+            // 关闭基础重力，但保留后续基于俯仰的影响和俯冲/爬升调整
+            gravityEffect = 0.0D;
+        } else {
+            gravityEffect = gravityAcceleration * (-1.0D + pitchLiftFactor * 0.75D);
+        }
         // 模拟升力 + 重力：在向量 Y 分量上添加（pitchLiftFactor 强则减缓下坠）
         currentVelocity = this.getDeltaMovement()
-                .add(0.0D, gravityAcceleration * (-1.0D + pitchLiftFactor * 0.75D), 0.0D);
+            .add(0.0D, gravityEffect, 0.0D);
 
         // 下降且存在水平朝向时，给予少量向前滑翔（减少纯垂直坠落感）
         if (currentVelocity.y < 0.0D && lookHorizLen > 0.0D) {
@@ -1311,7 +1342,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             );
         }
 
-        // 俯冲（pitchRad > 0）时：基于俯冲角将部分水平速度转为强力的下冲+前推，增强加速感
+        // 俯冲（pitchRad < 0）时：基于俯冲角将部分水平速度转为强力的下冲+前推，增强加速感
         if (pitchRad < 0.0F && lookHorizLen > 0.0D) {
             double diveAdjust = horizontalSpeed * (-Mth.sin(pitchRad)) * 0.04D;
             currentVelocity = currentVelocity.add(
@@ -1356,6 +1387,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
      * Rider specific actions such as rotation following and jump should be handled here <br>
      * If special movement is needed, make sure it's called only on client using {@link #isControlledByLocalInstance()} <br>
      * Note: yBodyRot & yHeadRot should be updated here, though some vanilla code (both vanilla and mc) updates in travel() <br>
+     *
      * @param player
      * @param travelVector
      * @see net.minecraft.world.entity.animal.horse.Horse#tickRidden(Player, Vec3)
@@ -1375,7 +1407,6 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 //            this.setDeltaMovement(vec3.add(0, vertical, 0));
 //        }
     }
-
 
 
     @Override
