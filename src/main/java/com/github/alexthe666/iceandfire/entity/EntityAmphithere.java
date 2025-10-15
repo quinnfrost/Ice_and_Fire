@@ -7,12 +7,14 @@ import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.client.model.IFChainBuffer;
 import com.github.alexthe666.iceandfire.datagen.tags.IafItemTags;
 import com.github.alexthe666.iceandfire.entity.ai.*;
+import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.props.EntityDataProvider;
 import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.misc.IafSoundRegistry;
 import com.github.alexthe666.iceandfire.pathfinding.PathNavigateFlyingCreature;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -1089,51 +1091,60 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 // Move direction param, this is normalized in moveRelative()
                 // Use 1f for normal move, and use speed for speed control
 //                double forward = rider.zza;
-                double forward = 1f;
-                double strafing = rider.xxa;
-                double vertical = 0;
+                Vec3 travelVec = Vec3.ZERO;
+                double forward = 1d;
+                double strafing = 1d;
+                double vertical = 1d;
 
                 Vec3 lookVec = rider.getLookAngle();
                 float pitch = rider.getXRot();
+                double gravity = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue();
                 boolean disableGravity = false;
 
 
                 // TODO: replace with attribute FLYING_SPEED or getRiddenSpeed()
 //                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * .5f;
                 float speed = 0.4f * .2f;
-                // Bigger difference in speed for young and elder dragons
-//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(Math.min(this.getAgeInDays(), 125), 0, 125, 0f, 1.5f));
-                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(speed,
-                                                                        this.minimumSpeed,
-                                                                        this.maximumSpeed,
-                                                                        0f,
-                                                                        1.5f
-                ));
+//                // Bigger difference in speed for young and elder dragons
+////                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(Math.min(this.getAgeInDays(), 125), 0, 125, 0f, 1.5f));
+//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(speed,
+//                                                                        this.minimumSpeed,
+//                                                                        this.maximumSpeed,
+//                                                                        0f,
+//                                                                        1.5f
+//                ));
                 // Apply speed mod
-                speed *= airSpeedModifier;
+//                speed *= airSpeedModifier;
                 // Set flag for logic and animation
 //                if (forward > 0) {
 //                    this.setFlying(true);
 //                }
 
                 gliding = allowMousePitchControl && this.isSprinting();
+                travelVec = travelVec.add(rider.xxa, rider.yya, rider.zza);
                 if (!gliding) {
-                    // reset look vector to horizontal
+                    // No pitch control
                     pitch = 0;
-                    lookVec.multiply(1f, 0f, 1f).normalize();
+                    // Fixme :: will cause diving even not gliding, if Y is set 0
+//                    lookVec = lookVec.with(Direction.Axis.Y, 0);
                     // If w is pressed
                     if (rider.zza > 0) {
-                        forward *= 0.5f;
+                        gravity = 0d;
                         disableGravity = true;
+                    } else if (rider.zza < 0) {
+                        travelVec = travelVec.multiply(1, 1, 0.2d);
+//                        gravity *= 2d;
                     } else {
-                        forward *= 0.2f;
+                        travelVec = travelVec.multiply(1, 1, 0.9d);
                     }
                     // Slower on going sideways
-                    strafing *= 0.4f;
+//                    travelVec = travelVec.multiply(0.4d, 1, 1);
                     if (isGoingUp() && !isGoingDown()) {
-                        vertical = 1f;
+//                        travelVec.add(0, 1d, 0);
+                        travelVec = travelVec.with(Direction.Axis.Y, 1d);
                     } else if (isGoingDown() && !isGoingUp()) {
-                        vertical = -1f;
+//                        travelVec.add(0, -1d, 0);
+                        travelVec = travelVec.with(Direction.Axis.Y, -1d);
                     }
                     // Damp the vertical motion so the dragon's head is more responsive to the control
                     else if (isControlledByLocalInstance()) {
@@ -1142,24 +1153,33 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 } else {
                     // Mouse controlled yaw and pitch
                     speed *= 1.1f;
-                    strafing *= 0.1f;
+//                    travelVec = travelVec.multiply(0.1d, 1, 1);
 
+                    // Todo :: this combined with pitchLiftFactor might cause pitch too high
                     // Try to match the moving vector to the rider's look vector
-                    forward = Mth.abs(Mth.cos(this.getXRot() * ((float) Math.PI / 180F)));
-                    vertical = Mth.abs(Mth.sin(this.getXRot() * ((float) Math.PI / 180F)));
+//                    forward = Mth.abs(Mth.cos(this.getXRot() * ((float) Math.PI / 180F)));
+//                    vertical = Mth.abs(Mth.sin(this.getXRot() * ((float) Math.PI / 180F)));
+                    travelVec = travelVec.with(Direction.Axis.Z, Mth.abs(Mth.cos(pitch * ((float) Math.PI / 180F))))
+                            .with(Direction.Axis.Y, Mth.abs(Mth.sin(pitch * ((float) Math.PI / 180F))));
+
                     // Pitch is still responsive to spacebar and x key
                     if (isGoingUp() && !isGoingDown()) {
-                        vertical = Math.max(vertical, 0.5);
+//                        vertical = Math.max(vertical, 0.5);
+                        travelVec = travelVec.with(Direction.Axis.Y, Math.max(travelVec.y, 0.5d));
                     } else if (isGoingDown() && !isGoingUp()) {
-                        vertical = Math.min(vertical, -0.5);
+//                        vertical = Math.min(vertical, -0.5);
+                        travelVec = travelVec.with(Direction.Axis.Y, Math.min(travelVec.y, -0.5d));
                     } else if (isGoingUp() && isGoingDown()) {
-                        vertical = 0;
+//                        vertical = 0;
+                        travelVec = travelVec.with(Direction.Axis.Y, 0d);
                     }
 //                    // X rotation takes minus on looking upward
                     else if (this.getXRot() < 0) {
-                        vertical *= 1;
+//                        vertical *= 1;
+                        travelVec = travelVec.with(Direction.Axis.Y, travelVec.y);
                     } else if (this.getXRot() > 0) {
-                        vertical *= -1;
+//                        vertical *= -1;
+                        travelVec = travelVec.with(Direction.Axis.Y, -travelVec.y);
                     } else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
                     }
@@ -1171,10 +1191,11 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     //                    this.setSpeed(speed);
 
                     // pAmount: target terminal speed per tick, without friction
-                    this.moveRelative(speed * 0.1F, new Vec3(strafing, vertical, forward));
+                    // travelVec must not be normalized here, normalize in separate movement logic
+                    this.moveRelative(speed * 0.1F, travelVec);
 //                    this.moveRelative(airSpeed, new Vec3(0, vertical, 0));
 //                    this.move(MoverType.SELF, this.getDeltaMovement());
-                    calculateFallflyingMotion(lookVec, pitch, new Vec3(0.99d, 0.99d, 0.99d), disableGravity, disableGravity);
+                    calculateFallflyingMotion(lookVec, pitch, new Vec3(0.99d, 0.99d, 0.99d), gravity, disableGravity, false);
 //                    this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
 
 //                    Vec3 currentMotion = this.getDeltaMovement();
@@ -1187,6 +1208,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 } else {
                     this.setDeltaMovement(Vec3.ZERO);
                 }
+                DebugUtils.custom_debug_message.put("Travel Vector", travelVec.toString());
                 this.tryCheckInsideBlocks();
                 return;
             }
@@ -1195,7 +1217,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 double forward = rider.zza;
                 double strafing = rider.xxa;
                 double vertical = 0;
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
+                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.5f;
 
                 if (isGoingUp() && !isGoingDown()) {
                     vertical = 0.5f;
@@ -1285,17 +1307,25 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
      * This method will update current motion as fall-flying
      */
     public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, boolean disableGravity) {
-        calculateFallflyingMotion(targetVector, xRot, friction, disableGravity, false);
+        calculateFallflyingMotion(targetVector,
+                                  xRot,
+                                  friction,
+                                  this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue(),
+                                  disableGravity,
+                                  false
+        );
     }
 
     /**
      * This method will update current motion as fall-flying
      */
-    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, boolean disableGravity, boolean forceSpeedToLookVec) {
+    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, double gravity, boolean disableGravity, boolean forceSpeedToLookVec) {
         // 基础重力（受 Forge 重力属性影响）
         double gravityAcceleration = 0.08D;
         AttributeInstance gravityAttr = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get());
         gravityAcceleration = gravityAttr.getValue();
+
+//        gravityAcceleration = gravity;
 
         // 统计慢速下落距离（原版用于减伤判断/缓降效果支持）
         this.checkSlowFallDistance();
@@ -1329,53 +1359,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             gravityEffect = gravityAcceleration * (-1.0D + pitchLiftFactor * 0.75D);
         }
 
-        if (forceSpeedToLookVec && lookLen > 1.0E-6D) {
-            // 将速度方向稳定到 lookVector（保持当前速度幅值），
-            // 并把所有升降/俯冲/滑翔相关的调整改为沿 lookVector 的标量加减速
-            Vec3 lookUnit = lookVector.normalize();
-
-            // 保持当前速度大小但对齐方向
-            double speedMag = currentVelocity.length();
-            if (speedMag > 1.0E-6D) {
-                currentVelocity = lookUnit.scale(speedMag);
-            }
-
-            // 下降且存在水平朝向时，用沿 lookVector 的前滑调整替代 Y 分量调整
-            if (currentVelocity.y < 0.0D && lookHorizLen > 0.0D) {
-                double forwardGlideAdjust = currentVelocity.y * -0.1D * pitchLiftFactor;
-                currentVelocity = currentVelocity.add(lookUnit.scale(forwardGlideAdjust));
-            }
-
-            // 俯冲时：将原本拆分到水平与 Y 的加速，合并为沿 lookVector 的加速量
-            if (pitchRad < 0.0F && lookHorizLen > 0.0D) {
-                double diveAdjustScalar = horizontalSpeed * (-Mth.sin(pitchRad)) * 0.04D * 3.2D;
-                currentVelocity = currentVelocity.add(lookUnit.scale(diveAdjustScalar));
-            }
-
-            // 将基础重力效果也投影为沿 lookVector 的调整（当 disableGravity 为 false 时）
-            if (gravityEffect != 0.0D) {
-                currentVelocity = currentVelocity.add(lookUnit.scale(gravityEffect));
-            }
-
-            // 缓慢减少垂直/横向与视线方向的偏差，向视线方向纠偏（保留一定惯性）
-            Vec3 parallel = lookUnit.scale(currentVelocity.dot(lookUnit));
-            Vec3 perp = currentVelocity.subtract(parallel);
-            // 0.9 为纠偏强度（可调整），越小越快贴合视线方向
-            currentVelocity = parallel.add(perp.scale(0.9D));
-
-            // 应用空气阻力并移动
-            this.setDeltaMovement(currentVelocity.multiply(friction));
-            this.move(MoverType.SELF, this.getDeltaMovement());
-
-            // 碰墙后的处理（保留原先结构以便未来播放音效/伤害）
-            if (this.horizontalCollision && !this.level().isClientSide) {
-                double postCollideHorizSpeed = this.getDeltaMovement().horizontalDistance();
-                double speedLoss = horizontalSpeed - postCollideHorizSpeed;
-                float collisionSeverity = (float) (speedLoss * 10.0D - 3.0D);
-                // 预留：播放音效/受伤逻辑（见原版 Elytra）
-                // if (collisionSeverity > 0.0F) { ... }
-            }
-        } else {
+        if (!forceSpeedToLookVec || !(lookLen > 1.0E-6D)) {
             // fallback：保留原有非强制对齐逻辑（仅做小幅整理，保持行为兼容）
             // 模拟升力 + 重力：在向量 Y 分量上添加（pitchLiftFactor 强则减缓下坠）
             currentVelocity = this.getDeltaMovement().add(0.0D, gravityEffect, 0.0D);
@@ -1415,6 +1399,52 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             this.move(MoverType.SELF, this.getDeltaMovement());
 
             // 水平碰撞后（撞墙）可计算一次速度损失（保留结构以便未来加特效或伤害）
+            if (this.horizontalCollision && !this.level().isClientSide) {
+                double postCollideHorizSpeed = this.getDeltaMovement().horizontalDistance();
+                double speedLoss = horizontalSpeed - postCollideHorizSpeed;
+                float collisionSeverity = (float) (speedLoss * 10.0D - 3.0D);
+                // 预留：播放音效/受伤逻辑（见原版 Elytra）
+                // if (collisionSeverity > 0.0F) { ... }
+            }
+        } else {
+            // 将速度方向稳定到 lookVector（保持当前速度幅值），
+            // 并把所有升降/俯冲/滑翔相关的调整改为沿 lookVector 的标量加减速
+            Vec3 lookUnit = lookVector.normalize();
+
+            // 保持当前速度大小但对齐方向
+            double speedMag = currentVelocity.length();
+            if (speedMag > 1.0E-6D) {
+                currentVelocity = lookUnit.scale(speedMag);
+            }
+
+            // 下降且存在水平朝向时，用沿 lookVector 的前滑调整替代 Y 分量调整
+            if (currentVelocity.y < 0.0D && lookHorizLen > 0.0D) {
+                double forwardGlideAdjust = currentVelocity.y * -0.1D * pitchLiftFactor;
+                currentVelocity = currentVelocity.add(lookUnit.scale(forwardGlideAdjust));
+            }
+
+            // 俯冲时：将原本拆分到水平与 Y 的加速，合并为沿 lookVector 的加速量
+            if (pitchRad < 0.0F && lookHorizLen > 0.0D) {
+                double diveAdjustScalar = horizontalSpeed * (-Mth.sin(pitchRad)) * 0.04D * 3.2D;
+                currentVelocity = currentVelocity.add(lookUnit.scale(diveAdjustScalar));
+            }
+
+            // 将基础重力效果也投影为沿 lookVector 的调整（当 disableGravity 为 false 时）
+            if (gravityEffect != 0.0D) {
+                currentVelocity = currentVelocity.add(lookUnit.scale(gravityEffect));
+            }
+
+            // 缓慢减少垂直/横向与视线方向的偏差，向视线方向纠偏（保留一定惯性）
+            Vec3 parallel = lookUnit.scale(currentVelocity.dot(lookUnit));
+            Vec3 perp = currentVelocity.subtract(parallel);
+            // 0.9 为纠偏强度（可调整），越小越快贴合视线方向
+            currentVelocity = parallel.add(perp.scale(0.9D));
+
+            // 应用空气阻力并移动
+            this.setDeltaMovement(currentVelocity.multiply(friction));
+            this.move(MoverType.SELF, this.getDeltaMovement());
+
+            // 碰墙后的处理（保留原先结构以便未来播放音效/伤害）
             if (this.horizontalCollision && !this.level().isClientSide) {
                 double postCollideHorizSpeed = this.getDeltaMovement().horizontalDistance();
                 double speedLoss = horizontalSpeed - postCollideHorizSpeed;
