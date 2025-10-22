@@ -1101,7 +1101,6 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 float yaw = rider.getYRot();
                 double yawRad = Math.toRadians(yaw);
                 double gravity = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue();
-                boolean disableGravity = false;
 
 
                 // TODO: replace with attribute FLYING_SPEED or getRiddenSpeed()
@@ -1127,8 +1126,9 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 if (!gliding) {
                     // No pitch control
                     pitch = 0;
-                    // Fixme :: will cause diving even not gliding, if Y is set 0
-                    if (lookVec.horizontalDistanceSqr() == 0 || Math.abs(lookVec.y) == 1d) {
+                    // fix wild normalized lookVec when normalized
+                    // TODO :: maybe use yaw all along
+                    if (lookVec.horizontalDistanceSqr() < 1e-6 || Math.abs(lookVec.y) == 1d) {
                         lookVec = new Vec3(-Math.sin(yawRad), 0.0D, Math.cos(yawRad));
                     } else {
                         lookVec = lookVec.normalize().with(Direction.Axis.Y, 0).normalize();
@@ -1136,14 +1136,11 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     // If w is pressed
                     if (rider.zza > 0) {
                         gravity = 0d;
-                        bEnableGravityEffect = false;
                     } else if (rider.zza < 0) {
-                        travelVec = travelVec.multiply(1, 1, 0.2d);
-//                        gravity *= 2d;
-                        bEnableGravityEffect = true;
+                        travelVec = travelVec.multiply(1, 1, 1d);
+                        gravity *= this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue() * 25d;
                     } else {
-                        travelVec = travelVec.multiply(1, 1, 0.5d);
-                        bEnableGravityEffect = true;
+//                        travelVec = travelVec.multiply(1, 1, 0.5d);
                     }
                     // Slower on going sideways
 //                    travelVec = travelVec.multiply(0.4d, 1, 1);
@@ -1173,21 +1170,23 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     // Pitch is still responsive to spacebar and x key
                     if (isGoingUp() && !isGoingDown()) {
 //                        vertical = Math.max(vertical, 0.5);
-                        travelVec = travelVec.with(Direction.Axis.Y, Math.max(travelVec.y, 0.5d));
+//                        travelVec = travelVec.with(Direction.Axis.Y, Math.max(travelVec.y, 0.5d));
+                        travelVec = travelVec.add(0, 0.5d, 0).normalize();
                     } else if (isGoingDown() && !isGoingUp()) {
 //                        vertical = Math.min(vertical, -0.5);
-                        travelVec = travelVec.with(Direction.Axis.Y, Math.min(travelVec.y, -0.5d));
+//                        travelVec = travelVec.with(Direction.Axis.Y, Math.min(travelVec.y, -0.5d));
+                        travelVec = travelVec.add(0, -0.5d, 0).normalize();
                     } else if (isGoingUp() && isGoingDown()) {
 //                        vertical = 0;
-                        travelVec = travelVec.with(Direction.Axis.Y, 0d);
-                    }
-//                    // X rotation takes minus on looking upward
-                    else if (this.getXRot() < 0) {
-//                        vertical *= 1;
-                        travelVec = travelVec.with(Direction.Axis.Y, travelVec.y);
-                    } else if (this.getXRot() > 0) {
-//                        vertical *= -1;
-                        travelVec = travelVec.with(Direction.Axis.Y, -travelVec.y);
+                        travelVec = travelVec.with(Direction.Axis.Y, 0d).normalize();
+//                    }
+////                    // X rotation takes minus on looking upward
+//                    else if (this.getXRot() < 0) {
+////                        vertical *= 1;
+//                        travelVec = travelVec.with(Direction.Axis.Y, travelVec.y);
+//                    } else if (this.getXRot() > 0) {
+////                        vertical *= -1;
+//                        travelVec = travelVec.with(Direction.Axis.Y, -travelVec.y);
                     } else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
                     }
@@ -1206,9 +1205,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     calculateFallflyingMotion(lookVec,
                                               pitch,
                                               new Vec3(0.99d, 0.99d, 0.99d),
-                                              gravity,
-                                              disableGravity,
-                                              false
+                                              gravity
                     );
 //                    this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
 
@@ -1223,6 +1220,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     this.setDeltaMovement(Vec3.ZERO);
                 }
                 DebugUtils.custom_debug_message.put("Travel Vector", travelVec.toString());
+                DebugUtils.custom_debug_message.put("Gravity", String.valueOf(gravity));
                 this.tryCheckInsideBlocks();
                 return;
             }
@@ -1293,40 +1291,17 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
      * This method will update current motion as fall-flying
      */
     public void calculateFallflyingMotion() {
-        calculateFallflyingMotion(this.getLookAngle());
-    }
-
-    /**
-     * This method will update current motion as fall-flying
-     */
-    public void calculateFallflyingMotion(Vec3 targetVector) {
-        calculateFallflyingMotion(targetVector, this.getXRot());
+        calculateFallflyingMotion(this.getLookAngle(), this.getXRot());
     }
 
     /**
      * This method will update current motion as fall-flying
      */
     public void calculateFallflyingMotion(Vec3 targetVector, float xRot) {
-        calculateFallflyingMotion(targetVector, xRot, new Vec3(0.99d, 0.98d, 0.99d));
-    }
-
-    /**
-     * This method will update current motion as fall-flying
-     */
-    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction) {
-        calculateFallflyingMotion(targetVector, xRot, friction, false);
-    }
-
-    /**
-     * This method will update current motion as fall-flying
-     */
-    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, boolean disableGravity) {
         calculateFallflyingMotion(targetVector,
                                   xRot,
-                                  friction,
-                                  this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue(),
-                                  disableGravity,
-                                  false
+                                  new Vec3(0.99d, 0.98d, 0.99d),
+                                  this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue()
         );
     }
 
@@ -1339,13 +1314,13 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
     /**
      * This method will update current motion as fall-flying
      */
-    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, double gravity, boolean disableGravity, boolean forceSpeedToLookVec) {
+    public void calculateFallflyingMotion(Vec3 targetVector, float xRot, Vec3 friction, double gravity) {
         // 基础重力（受 Forge 重力属性影响）
         double gravityAcceleration = 0.08D;
         AttributeInstance gravityAttr = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get());
         gravityAcceleration = gravityAttr.getValue();
 
-//        gravityAcceleration = gravity;
+        gravityAcceleration = gravity;
 
         // 统计慢速下落距离（原版用于减伤判断/缓降效果支持）
         this.checkSlowFallDistance();
@@ -1374,13 +1349,13 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         double gravityEffect;
         if (bEnableGravityEffect) {
             gravityEffect = gravityAcceleration * (-1.0D + pitchLiftFactor * 0.75D);
-            // fallback：保留原有非强制对齐逻辑（仅做小幅整理，保持行为兼容）
-            // 模拟升力 + 重力：在向量 Y 分量上添加（pitchLiftFactor 强则减缓下坠）
-            currentVelocity = this.getDeltaMovement().add(0.0D, gravityEffect, 0.0D);
         } else {
             // 关闭基础重力，但保留后续基于俯仰的影响和俯冲/爬升调整
-//            gravityEffect = 0.0D;
+            gravityEffect = 0.0D;
         }
+        // fallback：保留原有非强制对齐逻辑（仅做小幅整理，保持行为兼容）
+        // 模拟升力 + 重力：在向量 Y 分量上添加（pitchLiftFactor 强则减缓下坠）
+        currentVelocity = this.getDeltaMovement().add(0.0D, gravityEffect, 0.0D);
 
         if (bEnableFallingBoost) {
             // 下降且存在水平朝向时，给予少量向前滑翔（减少纯垂直坠落感）
