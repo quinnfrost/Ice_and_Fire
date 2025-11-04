@@ -1023,7 +1023,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
     public boolean allowMousePitchControl = true;
     public boolean allowAmphithereLeveledGlide = true;
     protected boolean gliding = false;
-    //    protected float glidingSpeedBonus = 0;
+    protected float glidingSpeedBonus = 0;
     public double minimumSpeed = .2f;
     public double maximumSpeed = .6f;
 
@@ -1052,104 +1052,49 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         // Note: when motion is handled by the client no server side setDeltaMovement() should be called
         // otherwise the movement will halt
         // Todo: move wrongly fix
-        if (allowLocalMotionControl && this.getControllingPassenger() != null && hasControllingPassenger()) {
+        // Todo: canBeControlledByRider() check has been removed, check if taming behavior is affected
+        if (allowLocalMotionControl && this.getControllingPassenger() != null) {
             LivingEntity rider = (LivingEntity) this.getControllingPassenger();
             if (rider == null) {
                 super.travel(pTravelVector);
                 return;
             }
 
-            // local speed for flying, passed into moveRelative() as float pAmount
-            float airSpeed;
 
-//            final int i = rider.getPassengers().indexOf(this);
-//            final float radius = (i == 2 ? -0.2F : 0.5F) + (((Player) rider).isFallFlying() ? 2 : 0);
-//            final float angle = (0.01745329251F * ((Player) rider).yBodyRot) + (i == 1 ? 90 : i == 0 ? -90 : 0);
-//            final double extraX = radius * Mth.sin((float) (Math.PI + angle));
-//            final double extraZ = radius * Mth.cos(angle);
-//            final double extraY = (rider.isShiftKeyDown() ? 1.2D : 1.4D) + (i == 2 ? 0.4D : 0D);
-//            this.yHeadRot = ((Player) rider).yHeadRot;
-//            this.setYRot(((Player) rider).yHeadRot);
-
-//            this.setYRot(rider.getYRot());
-//            this.yRotO = this.getYRot();
-
-//            this.yHeadRotO = this.getYRot();
-//            this.yBodyRotO = this.getYRot();
-
-//            this.setXRot(rider.getXRot() * 0.5F);
-//            this.setRot(this.getYRot(), this.getXRot());
-//            this.yBodyRot = this.getYRot();
-
-            // Todo: this is copied from vanilla travel(), why is it needed?
-            // adding this will cause yHeadRotO based rotation detection to fail, removing this doesn't seem to cause any issues
-//            this.yHeadRotO = this.yHeadRot;
-//            this.yHeadRot = this.yBodyRot;
-
+            // Todo: amphithere yaw takes half of the rider
             // Flying control, include flying through waterfalls
             if (isHovering() || isFlying()) {
-                // Move direction param, this is normalized in moveRelative()
-                // Use 1f for normal move, and use speed for speed control
-//                double forward = rider.zza;
-                Vec3 travelVec = Vec3.ZERO;
-                double forward = 1d;
-                double strafing = 1d;
-                double vertical = 1d;
-
-                Vec3 lookVec = rider.getLookAngle();
-                float pitch = rider.getXRot();
-                float yaw = rider.getYRot();
-                double yawRad = Math.toRadians(yaw);
-                double gravity = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue();
-
-
-                // TODO: replace with attribute FLYING_SPEED or getRiddenSpeed()
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * .5f;
-//                float speed = 0.4f * .2f;
-//                // Bigger difference in speed for young and elder dragons
-////                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(Math.min(this.getAgeInDays(), 125), 0, 125, 0f, 1.5f));
-//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(speed,
-//                                                                        this.minimumSpeed,
-//                                                                        this.maximumSpeed,
-//                                                                        0f,
-//                                                                        1.5f
-//                ));
+                double forward = rider.zza;
+                double strafing = rider.xxa;
+                double vertical = 0;
+                Vec3 travelVec = new Vec3(strafing, forward, vertical);
+                // speed increment in block per tick, if travelVec is normalized
+                // terminal speed: (1 - friction) * (tspeed + acc) = acc
+                // terminal speed = acc * friction / (1 - friction)
+                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.1f; // 0.4
+                // Bigger difference in speed for young and elder dragons
+//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(Math.min(this.getAgeInDays(), 125), 0, 125, 0f, 1.5f));
+                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(speed,
+                                                                        this.minimumSpeed,
+                                                                        this.maximumSpeed,
+                                                                        0f,
+                                                                        1.5f
+                ));
                 // Apply speed mod
 //                speed *= airSpeedModifier;
-                // Set flag for logic and animation
-//                if (forward > 0) {
-//                    this.setFlying(true);
-//                }
 
                 gliding = allowMousePitchControl && this.isSprinting();
-                travelVec = travelVec.add(rider.xxa, rider.yya, rider.zza);
                 if (!gliding) {
-                    // No pitch control
-                    pitch = 0;
-                    // fix wild normalized lookVec when normalized
-                    // TODO :: maybe use yaw all along
-                    if (lookVec.horizontalDistanceSqr() < 1e-6 || Math.abs(lookVec.y) == 1d) {
-                        lookVec = new Vec3(-Math.sin(yawRad), 0.0D, Math.cos(yawRad));
-                    } else {
-                        lookVec = lookVec.normalize().with(Direction.Axis.Y, 0).normalize();
-                    }
-                    // If w is pressed
-                    if (rider.zza > 0) {
-                        gravity = 0d;
-                    } else if (rider.zza < 0) {
-                        travelVec = travelVec.multiply(1, 1, 1d);
-                        gravity *= this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue() * 25d;
-                    } else {
-//                        travelVec = travelVec.multiply(1, 1, 0.5d);
-                    }
+                    // Mouse controlled yaw
+                    speed += glidingSpeedBonus * (rider.isSprinting() ? 1.5f : 1.0f);
+                    // Slower on going astern
+                    forward *= rider.zza > 0 ? 1.0f : 0.5f;
                     // Slower on going sideways
-//                    travelVec = travelVec.multiply(0.4d, 1, 1);
+                    strafing *= 0.4f;
                     if (isGoingUp() && !isGoingDown()) {
-//                        travelVec.add(0, 1d, 0);
-                        travelVec = travelVec.with(Direction.Axis.Y, 1d);
+                        vertical = 1f;
                     } else if (isGoingDown() && !isGoingUp()) {
-//                        travelVec.add(0, -1d, 0);
-                        travelVec = travelVec.with(Direction.Axis.Y, -1d);
+                        vertical = -1f;
                     }
                     // Damp the vertical motion so the dragon's head is more responsive to the control
                     else if (isControlledByLocalInstance()) {
@@ -1157,70 +1102,56 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     }
                 } else {
                     // Mouse controlled yaw and pitch
-//                    speed *= 1.1f;
-//                    travelVec = travelVec.multiply(0.1d, 1, 1);
-
-                    // Todo :: this combined with pitchLiftFactor might cause pitch too high
+                    speed *= 1.5f;
+                    strafing *= 0.1f;
+                    // Diving is faster
+                    // Todo: a new and better algorithm much like elytra flying
+                    glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
+                                                          -0.8d,
+                                                          1.5d
+                    );
+                    speed += glidingSpeedBonus * 0.1;
                     // Try to match the moving vector to the rider's look vector
-//                    forward = Mth.abs(Mth.cos(this.getXRot() * ((float) Math.PI / 180F)));
-//                    vertical = Mth.abs(Mth.sin(this.getXRot() * ((float) Math.PI / 180F)));
-                    travelVec = travelVec.with(Direction.Axis.Z, Mth.abs(Mth.cos(pitch * ((float) Math.PI / 180F))))
-                            .with(Direction.Axis.Y, Mth.abs(Mth.sin(pitch * ((float) Math.PI / 180F)))).normalize();
-
+                    forward = Mth.abs(Mth.cos(rider.getXRot() * ((float) Math.PI / 180F)));
+                    vertical = Mth.abs(Mth.sin(rider.getXRot() * ((float) Math.PI / 180F)));
                     // Pitch is still responsive to spacebar and x key
                     if (isGoingUp() && !isGoingDown()) {
-//                        vertical = Math.max(vertical, 0.5);
-//                        travelVec = travelVec.with(Direction.Axis.Y, Math.max(travelVec.y, 0.5d));
-                        travelVec = travelVec.add(0, 0.5d, 0).normalize();
+                        vertical = Math.max(vertical, 0.5);
                     } else if (isGoingDown() && !isGoingUp()) {
-//                        vertical = Math.min(vertical, -0.5);
-//                        travelVec = travelVec.with(Direction.Axis.Y, Math.min(travelVec.y, -0.5d));
-                        travelVec = travelVec.add(0, -0.5d, 0).normalize();
+                        vertical = Math.min(vertical, -0.5);
                     } else if (isGoingUp() && isGoingDown()) {
-//                        vertical = 0;
-                        travelVec = travelVec.with(Direction.Axis.Y, 0d).normalize();
-//                    }
-////                    // X rotation takes minus on looking upward
-//                    else if (this.getXRot() < 0) {
-////                        vertical *= 1;
-//                        travelVec = travelVec.with(Direction.Axis.Y, travelVec.y);
-//                    } else if (this.getXRot() > 0) {
-////                        vertical *= -1;
-//                        travelVec = travelVec.with(Direction.Axis.Y, -travelVec.y);
+                        vertical = 0;
+                    }
+                    // X rotation takes minus on looking upward
+                    else if (this.getXRot() < 0) {
+                        vertical *= 1;
+                    } else if (this.getXRot() > 0) {
+                        vertical *= -1;
                     } else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
                     }
                 }
+                // Speed bonus damping
+                glidingSpeedBonus -= glidingSpeedBonus * 0.01d;
 
                 if (this.isControlledByLocalInstance()) {
                     // Vanilla friction on Y axis is smaller, which will influence terminal speed for climbing and diving
                     // use same friction coefficient on all axis simplifies how travel vector is computed
-                    //                    this.setSpeed(speed);
 
-                    // pAmount: target terminal speed per tick, without friction
-                    // travelVec must not be normalized here, normalize in separate movement logic
-                    this.moveRelative(speed * 0.1F, travelVec);
-//                    this.moveRelative(airSpeed, new Vec3(0, vertical, 0));
-//                    this.move(MoverType.SELF, this.getDeltaMovement());
-                    calculateFallflyingMotion(lookVec,
-                                              pitch,
-                                              new Vec3(0.99d, 0.99d, 0.99d),
-                                              gravity
-                    );
-//                    this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
+                    this.moveRelative(speed, new Vec3(strafing, vertical, forward));
+                    this.move(MoverType.SELF, this.getDeltaMovement());
+                    this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
 
-//                    Vec3 currentMotion = this.getDeltaMovement();
-//                    if (this.horizontalCollision) {
-//                        currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
-//                    }
-//                    this.setDeltaMovement(currentMotion);
+                    Vec3 currentMotion = this.getDeltaMovement();
+                    if (this.horizontalCollision) {
+                        currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+                    }
+                    this.setDeltaMovement(currentMotion);
 
                     this.calculateEntityAnimation(false);
                 } else {
                     this.setDeltaMovement(Vec3.ZERO);
                 }
-                DebugUtils.custom_debug_message.put("Travel Vector", travelVec.toString());
-                DebugUtils.custom_debug_message.put("Gravity", String.valueOf(gravity));
                 this.tryCheckInsideBlocks();
                 return;
             }
@@ -1229,7 +1160,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 double forward = rider.zza;
                 double strafing = rider.xxa;
                 double vertical = 0;
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.5f;
+                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
 
                 if (isGoingUp() && !isGoingDown()) {
                     vertical = 0.5f;
@@ -1237,7 +1168,6 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     vertical = -0.5f;
                 }
 
-                airSpeed = speed;
                 // Float in water for those can't swim is done in LivingEntity#aiStep on server side
                 // Leave this handled by both side before we have a better solution
                 this.setSpeed(speed);
@@ -1269,7 +1199,6 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 strafing *= 0.05f;
 
                 if (this.isControlledByLocalInstance()) {
-                    airSpeed = speed * 0.1F;
                     this.setSpeed(speed);
 
                     // Vanilla walking behavior includes going up steps
@@ -1286,6 +1215,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             super.travel(pTravelVector);
         }
     }
+
 
     /**
      * This method will update current motion as fall-flying
