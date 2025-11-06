@@ -813,6 +813,12 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         return new Animation[]{IAnimatedEntity.NO_ANIMATION, EntityHippogryph.ANIMATION_EAT, EntityHippogryph.ANIMATION_BITE, EntityHippogryph.ANIMATION_SPEAK, EntityHippogryph.ANIMATION_SCRATCH};
     }
 
+    @Override
+    public boolean canSprint() {
+        // Fixme: impl ICustomMoveController#sprint instead
+        return this.getControllingPassenger() instanceof Player;
+    }
+
     public final boolean DISABLE_MOVEMENT_CHECK = false;
 
     @Override
@@ -835,34 +841,24 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                 // Note: this.flyingSpeed is used in LivingEntity#getFrictionInfluencedSpeed and used to determine moving speed when onGround is false, when using original LivingEntity#travel
                 // Starting at least 1.20 however, air speed in travel() is now hardcoded to getSpeed() * 0.1f
                 // If movement is handled by custom moveRelative() calls, then this.flyingSpeed is safe to remove, otherwise, using super.travel() will require additional tweaker
-                float flyingSpeed = this.getSpeed();
-
-                // Mouse controlled yaw
-//                this.setYRot(rider.getYRot());
-//                this.yRotO = this.getYRot();
-//                this.setXRot(rider.getXRot() * 0.5F);
-//                this.setRot(this.getYRot(), this.getXRot());
-//                this.yBodyRot = this.getYRot();
-//                this.yHeadRot = this.yBodyRot;
+                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
 
                 float sideway = rider.xxa;
                 float forward = rider.zza;
-                float vertical = this.isGoingUp() ? 1.0F : this.isGoingDown() ? -1.0F : 0F;
+                float vertical = 0f;
 
+                // calculate speed mod
                 float speedFactor = 1.0f;
                 if (this.isFlying() || this.isHovering()) {
                     speedFactor *= flightSpeedFactor;
                     // Let server know we're flying before they kick us
                     this.setNoGravity(true);
-                    this.getFlyingSpeed();
-                    flyingSpeed = this.getSpeed();
+                    vertical = this.isGoingUp() ? 1.0F : this.isGoingDown() ? -1.0F : 0F;
                 } else {
                     speedFactor *= walkSpeedFactor;
                     this.setNoGravity(false);
                     // Inherit the vertical movement, e.g. falling movement
                     vertical = (float) pTravelVector.y;
-                    // In air moving speed
-                    flyingSpeed = this.getSpeed() * 0.1F;
                 }
 
                 // Faster on sprint
@@ -871,25 +867,17 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                 forward *= forward <= 0f ? 0.25f : 1.0f;
                 sideway *= 0.5F;
 
+                // apply speed mod
+                speed *= speedFactor;
+
                 if (this.isControlledByLocalInstance()) {
                     if (this.isFlying() || this.isHovering()) {
-                        this.setSpeed((float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor);
-                        Vec3 motionO = this.getDeltaMovement();
+                        this.setSpeed(speed);
 //                    super.travel(new Vec3(sideway, vertical, forward));
                         calculateSimpleAirMovement((new Vec3(sideway, vertical, forward)).normalize(),
-                                                   this.getSpeed(),
+                                                   speed,
                                                    new Vec3(0.91f, 0.91f, 0.91f)
                         );
-//                    // Vanilla travel has a smaller friction factor for Y axis
-//                    // Add more friction in case moving too fast on Y axis
-                        // Todo: why do we still need this?
-//                        if (this.isFlying() || this.isHovering()) {
-//                            this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.92f, 1.0f));
-//                        }
-                        motionO = this.getDeltaMovement().subtract(motionO);
-                        DebugUtils.custom_debug_message.put("dLength", motionO.length() + "");
-                        DebugUtils.custom_debug_message.put("dXZ", motionO.horizontalDistance() + "");
-                        DebugUtils.custom_debug_message.put("dY", motionO.y + "");
                     } else {
                         this.setSpeed((float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor);
                         super.travel(new Vec3(sideway, vertical, forward));
@@ -927,15 +915,24 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         }
         this.setDeltaMovement(currentMotion);
 
+        // apply custom friction
+        // Vanilla travel has a smaller friction factor for Y axis
         this.setDeltaMovement(this.getDeltaMovement().multiply(friction.x, friction.y, friction.z));
     }
 
+    /**
+     * Rider head turn is done here, and {@link #positionRider(Entity, MoveFunction)}
+     *
+     * @param player
+     * @param travelVector
+     */
     @Override
     protected void tickRidden(@NotNull Player player, @NotNull Vec3 travelVector) {
         super.tickRidden(player, travelVector);
         Vec2 vec2 = this.getRiddenRotation(player);
         this.setRot(vec2.y, vec2.x);
         this.yRotO = this.yBodyRot = this.yHeadRot = this.getYRot();
+        // non-movement rider action can be put here
 //        if (this.isControlledByLocalInstance()) {
 //            Vec3 vec3 = this.getDeltaMovement();
 //            float vertical = this.isGoingUp() ? 0.2F : this.isGoingDown() ? -0.2F : 0F;
