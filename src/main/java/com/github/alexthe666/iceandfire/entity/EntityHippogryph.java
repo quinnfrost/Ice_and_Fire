@@ -830,64 +830,31 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 
         // Handle riding movement
         // Reference: AbstractHorse#travel
+        // Note: only player rider is considered
         if (this.isAlive()) {
             if (this.isVehicle() && this.getControllingPassenger() != null && this.isSaddled()) {
-                // Approx value for speed tweak
-                // Maybe should be put into config
-                float walkSpeedFactor = 0.80f;
-                float flightSpeedFactor = 0.35F;
-                LivingEntity rider = (LivingEntity) this.getControllingPassenger();
+                LivingEntity rider = this.getControllingPassenger();
+                float baseSpeed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
 
-                // Note: this.flyingSpeed is used in LivingEntity#getFrictionInfluencedSpeed and used to determine moving speed when onGround is false, when using original LivingEntity#travel
-                // Starting at least 1.20 however, air speed in travel() is now hardcoded to getSpeed() * 0.1f
-                // If movement is handled by custom moveRelative() calls, then this.flyingSpeed is safe to remove, otherwise, using super.travel() will require additional tweaker
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
-
-                float sideway = rider.xxa;
-                float forward = rider.zza;
-                float vertical = 0f;
-
-                // calculate speed mod
-                float speedFactor = 1.0f;
-                if (this.isFlying() || this.isHovering()) {
-                    speedFactor *= flightSpeedFactor;
-                    // Let server know we're flying before they kick us
-                    this.setNoGravity(true);
-                    vertical = this.isGoingUp() ? 1.0F : this.isGoingDown() ? -1.0F : 0F;
-                } else {
-                    speedFactor *= walkSpeedFactor;
-                    this.setNoGravity(false);
-                    // Inherit the vertical movement, e.g. falling movement
-                    vertical = (float) pTravelVector.y;
-                }
-
-                // Faster on sprint
-                speedFactor *= rider.isSprinting() ? 1.5f : 1.0f;
-                // Slower on going back/sideways
-                forward *= forward <= 0f ? 0.25f : 1.0f;
-                sideway *= 0.5F;
-
-                // apply speed mod
-                speed *= speedFactor;
+                Vec3 travelVector = getSimpleAirControl(pTravelVector);
+                float speed = getSimpleFlyingSpeed(baseSpeed);
 
                 if (this.isControlledByLocalInstance()) {
                     if (this.isFlying() || this.isHovering()) {
+                        // this is strictly not needed, but to keep this.getSpeed() correct and debuggable
                         this.setSpeed(speed);
-//                    super.travel(new Vec3(sideway, vertical, forward));
-                        calculateSimpleAirMovement((new Vec3(sideway, vertical, forward)).normalize(),
+                        // if vanilla travel should be used, set speed to 10x or override LivingEntity#getFrictionInfluencedSpeed, or you'll fly slow
+//                        super.travel(new Vec3(strafing, vertical, forward));
+                        calculateSimpleAirMovement(travelVector,
                                                    speed,
                                                    new Vec3(0.91f, 0.91f, 0.91f)
                         );
                     } else {
-                        this.setSpeed((float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor);
-                        super.travel(new Vec3(sideway, vertical, forward));
+                        this.setSpeed(speed);
+                        super.travel(travelVector);
                     }
                 } else if (rider instanceof Player) {
-                    this.setDeltaMovement(Vec3.ZERO);
-                    // Disable server side vehicle movement check, in case of console log spam
-                    // Happens when stepping up blocks
-                    // Might because client & server's onGround flag is out of sync
-                    // I can't get it fixed, so it's disabled
+                    // An aggressive fix for move wrongly message
                     this.noPhysics = DISABLE_MOVEMENT_CHECK;
                 }
 
@@ -903,6 +870,62 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
             this.setNoGravity(false);
             this.noPhysics = false;
         }
+    }
+
+    public float getSimpleFlyingSpeed(float baseSpeed) {
+        LivingEntity rider = this.getControllingPassenger();
+        // Note: this.flyingSpeed is used in LivingEntity#getFrictionInfluencedSpeed and used to determine moving speed when onGround is false, when using original LivingEntity#travel
+        // Starting at least 1.20 however, air speed in travel() is now hardcoded to getSpeed() * 0.1f
+        // If movement is handled by custom moveRelative() calls, then this.flyingSpeed is safe to remove, otherwise, using super.travel() will require additional tweaker
+        float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
+        // Global speed factors matching old version's speed
+        final float walkSpeedFactor = 0.80f;
+        final float flightSpeedFactor = 0.35F;
+
+
+
+        // calculate speed mod
+        float speedFactor = 1.0f;
+        if (this.isFlying() || this.isHovering()) {
+            // Let server know we're flying before they kick us
+            this.setNoGravity(true);
+
+            speedFactor *= flightSpeedFactor;
+        } else {
+            this.setNoGravity(false);
+
+            speedFactor *= walkSpeedFactor;
+        }
+
+        // Faster on sprint
+        speedFactor *= rider.isSprinting() ? 1.5f : 1.0f;
+
+
+//        // apply speed mod
+//        speed *= speedFactor;
+        return speed * speedFactor;
+    }
+
+    public Vec3 getSimpleAirControl(Vec3 pTravelVector) {
+        LivingEntity rider = this.getControllingPassenger();
+
+        // target movement input
+        float strafing = rider.xxa;
+        float forward = rider.zza;
+        float vertical = 0f;
+
+        if (this.isFlying() || this.isHovering()) {
+            vertical = this.isGoingUp() ? 1.0F : this.isGoingDown() ? -1.0F : 0F;
+        } else {
+            // Inherit the vertical movement, e.g. falling movement
+            vertical = (float) pTravelVector.y;
+        }
+
+        // Slower on going back/sideways
+        forward *= forward <= 0f ? 0.25f : 1.0f;
+        strafing *= 0.5F;
+
+        return new Vec3(strafing, vertical, forward).normalize();
     }
 
     public void calculateSimpleAirMovement(Vec3 travelVector, float speed, Vec3 friction) {

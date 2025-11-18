@@ -7,14 +7,12 @@ import com.github.alexthe666.iceandfire.IafConfig;
 import com.github.alexthe666.iceandfire.client.model.IFChainBuffer;
 import com.github.alexthe666.iceandfire.datagen.tags.IafItemTags;
 import com.github.alexthe666.iceandfire.entity.ai.*;
-import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.props.EntityDataProvider;
 import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.github.alexthe666.iceandfire.misc.IafSoundRegistry;
 import com.github.alexthe666.iceandfire.pathfinding.PathNavigateFlyingCreature;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -1019,6 +1017,12 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         return (entityData.get(CONTROL_STATE) >> 5 & 1) == 1;
     }
 
+    @Override
+    public boolean canSprint() {
+        // Fixme: impl ICustomMoveController#sprint instead
+        return this.getControllingPassenger() instanceof Player;
+    }
+
     public boolean allowLocalMotionControl = true;
     public boolean allowMousePitchControl = true;
     public boolean allowAmphithereLeveledGlide = true;
@@ -1045,7 +1049,6 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         }
 
         // TODO: add pitch animation
-        // TODO: how to use fliesLikeElytra flag
         // TODO: match original speed
 
         // Player riding controls
@@ -1053,100 +1056,29 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         // otherwise the movement will halt
         // Todo: move wrongly fix
         // Todo: canBeControlledByRider() check has been removed, check if taming behavior is affected
+        // Todo: downstair animation issue
         if (allowLocalMotionControl && this.getControllingPassenger() != null) {
-            LivingEntity rider = (LivingEntity) this.getControllingPassenger();
+            LivingEntity rider = this.getControllingPassenger();
             if (rider == null) {
                 super.travel(pTravelVector);
                 return;
             }
 
-
             // Todo: amphithere yaw takes half of the rider
-            // Flying control, include flying through waterfalls
             if (isHovering() || isFlying()) {
-                double forward = rider.zza;
-                double strafing = rider.xxa;
-                double vertical = 0;
-                Vec3 travelVec = new Vec3(strafing, forward, vertical);
-                // speed increment in block per tick, if travelVec is normalized
-                // terminal speed: (1 - friction) * (tspeed + acc) = acc
-                // terminal speed = acc * friction / (1 - friction)
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.1f; // 0.4
-                // Bigger difference in speed for young and elder dragons
-//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(Math.min(this.getAgeInDays(), 125), 0, 125, 0f, 1.5f));
-                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(speed,
-                                                                        this.minimumSpeed,
-                                                                        this.maximumSpeed,
-                                                                        0f,
-                                                                        1.5f
-                ));
-                // Apply speed mod
-//                speed *= airSpeedModifier;
+                float baseSpeed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
 
-                gliding = allowMousePitchControl && this.isSprinting();
-                if (!gliding) {
-                    // Mouse controlled yaw
-                    speed += glidingSpeedBonus * (rider.isSprinting() ? 1.5f : 1.0f);
-                    // Slower on going astern
-                    forward *= rider.zza > 0 ? 1.0f : 0.5f;
-                    // Slower on going sideways
-                    strafing *= 0.4f;
-                    if (isGoingUp() && !isGoingDown()) {
-                        vertical = 1f;
-                    } else if (isGoingDown() && !isGoingUp()) {
-                        vertical = -1f;
-                    }
-                    // Damp the vertical motion so the dragon's head is more responsive to the control
-                    else if (isControlledByLocalInstance()) {
-//                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
-                    }
-                } else {
-                    // Mouse controlled yaw and pitch
-                    speed *= 1.5f;
-                    strafing *= 0.1f;
-                    // Diving is faster
-                    // Todo: a new and better algorithm much like elytra flying
-                    glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
-                                                          -0.8d,
-                                                          1.5d
-                    );
-                    speed += glidingSpeedBonus * 0.1;
-                    // Try to match the moving vector to the rider's look vector
-                    forward = Mth.abs(Mth.cos(rider.getXRot() * ((float) Math.PI / 180F)));
-                    vertical = Mth.abs(Mth.sin(rider.getXRot() * ((float) Math.PI / 180F)));
-                    // Pitch is still responsive to spacebar and x key
-                    if (isGoingUp() && !isGoingDown()) {
-                        vertical = Math.max(vertical, 0.5);
-                    } else if (isGoingDown() && !isGoingUp()) {
-                        vertical = Math.min(vertical, -0.5);
-                    } else if (isGoingUp() && isGoingDown()) {
-                        vertical = 0;
-                    }
-                    // X rotation takes minus on looking upward
-                    else if (this.getXRot() < 0) {
-                        vertical *= 1;
-                    } else if (this.getXRot() > 0) {
-                        vertical *= -1;
-                    } else if (isControlledByLocalInstance()) {
-//                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
-                    }
-                }
-                // Speed bonus damping
-                glidingSpeedBonus -= glidingSpeedBonus * 0.01d;
+                Vec3 travelVector = getSimpleAirControl(baseSpeed);
+                float speed = getSimpleFlyingSpeed(baseSpeed);
+
+
 
                 if (this.isControlledByLocalInstance()) {
-                    // Vanilla friction on Y axis is smaller, which will influence terminal speed for climbing and diving
-                    // use same friction coefficient on all axis simplifies how travel vector is computed
-
-                    this.moveRelative(speed, new Vec3(strafing, vertical, forward));
-                    this.move(MoverType.SELF, this.getDeltaMovement());
-                    this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
-
-                    Vec3 currentMotion = this.getDeltaMovement();
-                    if (this.horizontalCollision) {
-                        currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+                    if (this.isFlying() || this.isHovering()) {
+                        calculateSimpleAirMovement(travelVector, speed);
+                    } else {
+                        calculateSimpleAirMovement(travelVector, speed);
                     }
-                    this.setDeltaMovement(currentMotion);
 
                     this.calculateEntityAnimation(false);
                 } else {
@@ -1214,6 +1146,123 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         else {
             super.travel(pTravelVector);
         }
+    }
+
+    protected float getSimpleFlyingSpeed(float baseSpeed) {
+        float targetSpeed = baseSpeed;
+
+        LivingEntity rider = this.getControllingPassenger();
+        // Global speed factors matching old version's speed
+        final float walkSpeedFactor = 0.80f;
+        final float flightSpeedFactor = (5.2F + 1f) * 0.4f * 0.1f;
+
+        // calculate speed mod
+        float speedFactor = 1.0f;
+
+        if (!gliding) {
+            // regular flying control
+            speedFactor *= rider.isSprinting() ? 1.5f : 1.0f;
+
+            targetSpeed = baseSpeed * speedFactor * flightSpeedFactor;
+        } else {
+            // Diving is faster
+            glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
+                                                  -0.8d,
+                                                  1.5d
+            );
+            targetSpeed = baseSpeed * speedFactor * flightSpeedFactor + glidingSpeedBonus * 0.1f;
+            // Speed bonus damping
+            glidingSpeedBonus -= glidingSpeedBonus * 0.01f;
+        }
+
+        return targetSpeed;
+    }
+
+    /**
+     * @param baseSpeed
+     * @return Normalized travel vector
+     */
+    protected Vec3 getSimpleAirControl(float baseSpeed) {
+        LivingEntity rider = this.getControllingPassenger();
+
+
+        // target movement input
+        float strafing = rider.xxa;
+        float forward = rider.zza;
+        float vertical = 0f;
+
+
+        // Flying control
+        // speed increment in block per tick, if travelVec is normalized
+        // terminal speed = acc * friction / (1 - friction)
+//                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.1f; // 0.4
+        // Bigger difference in speed for young and elder dragons
+//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(Math.min(this.getAgeInDays(), 125), 0, 125, 0f, 1.5f));
+//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(speed,
+//                                                                        this.minimumSpeed,
+//                                                                        this.maximumSpeed,
+//                                                                        0f,
+//                                                                        1.5f
+//                ));
+
+        gliding = allowMousePitchControl && this.isSprinting();
+        if (!gliding) {
+//            // Mouse controlled yaw
+//            speed += glidingSpeedBonus * (rider.isSprinting() ? 1.5f : 1.0f);
+
+            // Slower on going back
+            forward *= rider.zza > 0 ? 1.0f : 0.5f;
+            // Slower on going sideways
+            strafing *= 0.4f;
+            // space bar and x key
+            if (isGoingUp() && !isGoingDown()) {
+                vertical = 1f;
+            } else if (isGoingDown() && !isGoingUp()) {
+                vertical = -1f;
+            }
+            // Damp the vertical motion so the dragon's head is more responsive to the control
+//            else if (isControlledByLocalInstance()) {
+//                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
+//            }
+            return new Vec3(strafing, vertical, forward).normalize();
+        } else {
+            // Mouse controlled yaw and pitch
+            strafing *= 0.1f;
+
+            // Try to match the moving vector to the rider's look vector
+            forward = Mth.abs(Mth.cos(rider.getXRot() * ((float) Math.PI / 180F)));
+            vertical = Mth.abs(Mth.sin(rider.getXRot() * ((float) Math.PI / 180F)));
+            // Pitch is still responsive to spacebar and x key
+            if (isGoingUp() && !isGoingDown()) {
+                vertical = Math.max(vertical, 0.5f);
+            } else if (isGoingDown() && !isGoingUp()) {
+                vertical = Math.min(vertical, -0.5f);
+            } else if (isGoingUp() && isGoingDown()) {
+                vertical = 0;
+            }
+            // X rotation takes minus on looking upward
+            else if (this.getXRot() < 0) {
+                vertical *= 1;
+            } else if (this.getXRot() > 0) {
+                vertical *= -1;
+            }
+//            else if (isControlledByLocalInstance()) {
+//                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
+//            }
+            return new Vec3(strafing, vertical, forward).normalize();
+        }
+    }
+
+    private void calculateSimpleAirMovement(Vec3 travelVector, float speed) {
+        this.moveRelative(speed, travelVector);
+        this.move(MoverType.SELF, this.getDeltaMovement());
+        this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
+
+        Vec3 currentMotion = this.getDeltaMovement();
+        if (this.horizontalCollision) {
+            currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+        }
+        this.setDeltaMovement(currentMotion);
     }
 
 
