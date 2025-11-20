@@ -1,14 +1,18 @@
 package com.github.alexthe666.iceandfire.event;
 
+import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.client.event.ComputeFovModifierEvent;
 import net.minecraftforge.client.event.RenderPlayerEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.UUID;
@@ -95,5 +99,25 @@ public class PlayerRenderEvents {
             }
         }
         return false;
+    }
+
+    @SubscribeEvent
+    public void computeFovModifierEvent(ComputeFovModifierEvent event) {
+        Player player = event.getPlayer();
+        if (player.getVehicle() instanceof EntityDragonBase dragon) {
+            event.setNewFovModifier(event.getFovModifier() + Mth.map(
+                    Math.max(dragon.getGlidingSpeedBonus(), 0),
+                    0,
+                    1.5f,
+                    0f,
+                    0.5f
+            ));
+        }
+
+    }
+
+    @SubscribeEvent
+    public void computeFov(ViewportEvent.ComputeFov event) {
+
     }
 }

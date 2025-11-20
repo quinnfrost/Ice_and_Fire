@@ -1224,6 +1224,8 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 //            else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
 //            }
+            // Amphithere cannot hover
+            forward = Math.max(forward, 0.3f);
             return new Vec3(strafing, vertical, forward).normalize();
         } else {
             // Mouse controlled yaw and pitch
@@ -1249,6 +1251,8 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 //            else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
 //            }
+            // Amphithere cannot hover
+            forward = Math.max(forward, 0.3f);
             return new Vec3(strafing, vertical, forward).normalize();
         }
     }
