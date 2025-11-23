@@ -882,28 +882,22 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         final float walkSpeedFactor = 0.80f;
         final float flightSpeedFactor = 0.35F;
 
-
-
-        // calculate speed mod
-        float speedFactor = 1.0f;
         if (this.isFlying() || this.isHovering()) {
             // Let server know we're flying before they kick us
             this.setNoGravity(true);
 
-            speedFactor *= flightSpeedFactor;
+            speed *= flightSpeedFactor;
         } else {
             this.setNoGravity(false);
 
-            speedFactor *= walkSpeedFactor;
+            speed *= walkSpeedFactor;
         }
 
         // Faster on sprint
-        speedFactor *= rider.isSprinting() ? 1.5f : 1.0f;
+        speed *= rider.isSprinting() ? 1.5f : 1.0f;
 
 
-//        // apply speed mod
-//        speed *= speedFactor;
-        return speed * speedFactor;
+        return speed;
     }
 
     public Vec3 getSimpleAirControl(Vec3 pTravelVector) {

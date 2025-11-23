@@ -1056,7 +1056,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         // otherwise the movement will halt
         // Todo: move wrongly fix
         // Todo: canBeControlledByRider() check has been removed, check if taming behavior is affected
-        // Todo: downstair animation issue
+        // Todo: downstair animation issue (auto flying)
         if (allowLocalMotionControl && this.getControllingPassenger() != null) {
             LivingEntity rider = this.getControllingPassenger();
             if (rider == null) {
@@ -1065,81 +1065,50 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             }
 
             // Todo: amphithere yaw takes half of the rider
+            float baseSpeed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
             if (isHovering() || isFlying()) {
-                float baseSpeed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
 
-                Vec3 travelVector = getSimpleAirControl(baseSpeed);
+                Vec3 travelVector = getSimpleAirControl(baseSpeed, pTravelVector);
                 float speed = getSimpleFlyingSpeed(baseSpeed);
 
-
-
                 if (this.isControlledByLocalInstance()) {
-                    if (this.isFlying() || this.isHovering()) {
-                        calculateSimpleAirMovement(travelVector, speed);
-                    } else {
-                        calculateSimpleAirMovement(travelVector, speed);
-                    }
+                    calculateSimpleAirMovement(travelVector, speed);
 
                     this.calculateEntityAnimation(false);
                 } else {
                     this.setDeltaMovement(Vec3.ZERO);
                 }
                 this.tryCheckInsideBlocks();
-                return;
             }
             // In water move control, for those that can't swim
             else if (isInWater() || isInLava()) {
-                double forward = rider.zza;
-                double strafing = rider.xxa;
-                double vertical = 0;
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
-
-                if (isGoingUp() && !isGoingDown()) {
-                    vertical = 0.5f;
-                } else if (isGoingDown() && !isGoingUp()) {
-                    vertical = -0.5f;
-                }
-
-                // Float in water for those can't swim is done in LivingEntity#aiStep on server side
-                // Leave this handled by both side before we have a better solution
-                this.setSpeed(speed);
-                // Overwrite the zza in setSpeed
-                this.setZza((float) forward);
-                // Vanilla in water behavior includes float on water and moving very slow
-                // in lava behavior includes moving slow and sink
-                super.travel(pTravelVector.add(strafing, vertical, forward));
-
-                return;
-            }
-            // Walking control
-            else {
-                double forward = rider.zza;
-                double strafing = rider.xxa;
-                // Inherit y motion for dropping
-                double vertical = pTravelVector.y;
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
-
-                float groundSpeedModifier = (float) (1.8F * this.getFlightSpeedModifier());
-                speed *= groundSpeedModifier;
-                // Try to match the original riding speed
-                forward *= speed;
-                // Faster sprint
-                forward *= rider.isSprinting() ? 1.2f : 1.0f;
-                // Slower going back
-                forward *= rider.zza > 0 ? 1.0f : 0.2f;
-                // Slower going sideway
-                strafing *= 0.05f;
+                Vec3 travelVector = getSimpleAirControl(baseSpeed, pTravelVector);
+                float speed = getSimpleFlyingSpeed(baseSpeed);
 
                 if (this.isControlledByLocalInstance()) {
-                    this.setSpeed(speed);
+                    calculateSimpleAirMovement(travelVector, speed);
 
-                    // Vanilla walking behavior includes going up steps
-                    super.travel(new Vec3(strafing, vertical, forward));
+                    this.calculateEntityAnimation(false);
                 } else {
                     this.setDeltaMovement(Vec3.ZERO);
                 }
                 this.tryCheckInsideBlocks();
-                return;
+
+            }
+            // Walking control
+            else {
+                Vec3 travelVector = getSimpleAirControl(baseSpeed, pTravelVector);
+                float speed = getSimpleFlyingSpeed(baseSpeed);
+
+                if (this.isControlledByLocalInstance()) {
+                    calculateSimpleAirMovement(travelVector, speed);
+
+                    this.calculateEntityAnimation(false);
+                } else {
+                    this.setDeltaMovement(Vec3.ZERO);
+                }
+                this.tryCheckInsideBlocks();
+
             }
         }
         // No rider move control
@@ -1149,40 +1118,56 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
     }
 
     protected float getSimpleFlyingSpeed(float baseSpeed) {
-        float targetSpeed = baseSpeed;
+        float speed = baseSpeed;
 
         LivingEntity rider = this.getControllingPassenger();
         // Global speed factors matching old version's speed
         final float walkSpeedFactor = 0.80f;
         final float flightSpeedFactor = (5.2F + 1f) * 0.4f * 0.1f;
 
-        // calculate speed mod
-        float speedFactor = 1.0f;
+        if (isHovering() || isFlying()) {
+            // calculate speed mod
+            float speedFactor = 1.0f;
 
-        if (!gliding) {
-            // regular flying control
-            speedFactor *= rider.isSprinting() ? 1.5f : 1.0f;
+            if (!gliding) {
+                // regular flying control
+                speedFactor *= rider.isSprinting() ? 1.5f : 1.0f;
 
-            targetSpeed = baseSpeed * speedFactor * flightSpeedFactor;
-        } else {
-            // Diving is faster
-            glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
-                                                  -0.8d,
-                                                  1.5d
-            );
-            targetSpeed = baseSpeed * speedFactor * flightSpeedFactor + glidingSpeedBonus * 0.1f;
-            // Speed bonus damping
-            glidingSpeedBonus -= glidingSpeedBonus * 0.01f;
+                speed = baseSpeed * speedFactor * flightSpeedFactor;
+            } else {
+                // Diving is faster
+                glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
+                                                      -0.8d,
+                                                      1.5d
+                );
+                speed = baseSpeed * speedFactor * flightSpeedFactor + glidingSpeedBonus * 0.1f;
+                // Speed bonus damping
+                glidingSpeedBonus -= glidingSpeedBonus * 0.01f;
+            }
+
+            return speed;
+        }
+        // In water move control, for those that can't swim
+        else if (isInWater() || isInLava()) {
+            return speed;
+        }
+        // Walking control
+        else {
+            float groundSpeedModifier = (float) (1.8F * this.getFlightSpeedModifier());
+            speed *= groundSpeedModifier * 0.52f;
+
+            return speed;
         }
 
-        return targetSpeed;
+
     }
 
     /**
      * @param baseSpeed
+     * @param pTravelVector
      * @return Normalized travel vector
      */
-    protected Vec3 getSimpleAirControl(float baseSpeed) {
+    protected Vec3 getSimpleAirControl(float baseSpeed, Vec3 pTravelVector) {
         LivingEntity rider = this.getControllingPassenger();
 
 
@@ -1195,78 +1180,117 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         // Flying control
         // speed increment in block per tick, if travelVec is normalized
         // terminal speed = acc * friction / (1 - friction)
-//                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.1f; // 0.4
-        // Bigger difference in speed for young and elder dragons
-//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(Math.min(this.getAgeInDays(), 125), 0, 125, 0f, 1.5f));
-//                float airSpeedModifier = (float) (5.2f + 1.0f * Mth.map(speed,
-//                                                                        this.minimumSpeed,
-//                                                                        this.maximumSpeed,
-//                                                                        0f,
-//                                                                        1.5f
-//                ));
-
-        gliding = allowMousePitchControl && this.isSprinting();
-        if (!gliding) {
+        if (isHovering() || isFlying()) {
+            gliding = allowMousePitchControl && this.isSprinting();
+            if (!gliding) {
 //            // Mouse controlled yaw
 //            speed += glidingSpeedBonus * (rider.isSprinting() ? 1.5f : 1.0f);
 
-            // Slower on going back
-            forward *= rider.zza > 0 ? 1.0f : 0.5f;
-            // Slower on going sideways
-            strafing *= 0.4f;
-            // space bar and x key
-            if (isGoingUp() && !isGoingDown()) {
-                vertical = 1f;
-            } else if (isGoingDown() && !isGoingUp()) {
-                vertical = -1f;
-            }
-            // Damp the vertical motion so the dragon's head is more responsive to the control
+                // Slower on going back
+                forward *= rider.zza > 0 ? 1.0f : 0.5f;
+                // Slower on going sideways
+                strafing *= 0.4f;
+                // space bar and x key
+                if (isGoingUp() && !isGoingDown()) {
+                    vertical = 1f;
+                } else if (isGoingDown() && !isGoingUp()) {
+                    vertical = -1f;
+                }
+                // Damp the vertical motion so the dragon's head is more responsive to the control
 //            else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
 //            }
-            // Amphithere cannot hover
-            forward = Math.max(forward, 0.3f);
-            return new Vec3(strafing, vertical, forward).normalize();
-        } else {
-            // Mouse controlled yaw and pitch
-            strafing *= 0.1f;
+                // Amphithere cannot hover
+                forward = Math.max(forward, 0.3f);
+                return new Vec3(strafing, vertical, forward).normalize();
+            } else {
+                // Mouse controlled yaw and pitch
+                strafing *= 0.1f;
 
-            // Try to match the moving vector to the rider's look vector
-            forward = Mth.abs(Mth.cos(rider.getXRot() * ((float) Math.PI / 180F)));
-            vertical = Mth.abs(Mth.sin(rider.getXRot() * ((float) Math.PI / 180F)));
-            // Pitch is still responsive to spacebar and x key
-            if (isGoingUp() && !isGoingDown()) {
-                vertical = Math.max(vertical, 0.5f);
-            } else if (isGoingDown() && !isGoingUp()) {
-                vertical = Math.min(vertical, -0.5f);
-            } else if (isGoingUp() && isGoingDown()) {
-                vertical = 0;
-            }
-            // X rotation takes minus on looking upward
-            else if (this.getXRot() < 0) {
-                vertical *= 1;
-            } else if (this.getXRot() > 0) {
-                vertical *= -1;
-            }
+                // Try to match the moving vector to the rider's look vector
+                forward = Mth.abs(Mth.cos(rider.getXRot() * ((float) Math.PI / 180F)));
+                vertical = Mth.abs(Mth.sin(rider.getXRot() * ((float) Math.PI / 180F)));
+                // Pitch is still responsive to spacebar and x key
+                if (isGoingUp() && !isGoingDown()) {
+                    vertical = Math.max(vertical, 0.5f);
+                } else if (isGoingDown() && !isGoingUp()) {
+                    vertical = Math.min(vertical, -0.5f);
+                } else if (isGoingUp() && isGoingDown()) {
+                    vertical = 0;
+                }
+                // X rotation takes minus on looking upward
+                else if (this.getXRot() < 0) {
+                    vertical *= 1;
+                } else if (this.getXRot() > 0) {
+                    vertical *= -1;
+                }
 //            else if (isControlledByLocalInstance()) {
 //                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
 //            }
-            // Amphithere cannot hover
-            forward = Math.max(forward, 0.3f);
-            return new Vec3(strafing, vertical, forward).normalize();
+                // Amphithere cannot hover
+                forward = Math.max(forward, 0.3f);
+                return new Vec3(strafing, vertical, forward).normalize();
+            }
+        }
+        // In water move control, for those that can't swim
+        else if (isInWater() || isInLava()) {
+            if (isGoingUp() && !isGoingDown()) {
+                vertical = 0.5f;
+            } else if (isGoingDown() && !isGoingUp()) {
+                vertical = -0.5f;
+            }
+
+            return new Vec3(strafing, vertical, forward);
+        }
+        // Walking control
+        else {
+            // Inherit y motion for dropping
+            vertical = (float) pTravelVector.y;
+
+            // Try to match the original riding speed
+//            forward *= speed;
+            // Faster sprint
+            forward *= rider.isSprinting() ? 1.2f : 1.0f;
+            // Slower going back
+            forward *= rider.zza > 0 ? 1.0f : 0.2f;
+            // Slower going sideway
+            strafing *= 0.05f;
+
+            return pTravelVector.add(strafing, vertical, forward);
         }
     }
 
     private void calculateSimpleAirMovement(Vec3 travelVector, float speed) {
-        this.moveRelative(speed, travelVector);
-        this.move(MoverType.SELF, this.getDeltaMovement());
-        this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
+        if (isHovering() || isFlying()) {
+            this.moveRelative(speed, travelVector);
+            this.move(MoverType.SELF, this.getDeltaMovement());
+            // Apply friction
+            this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
 
-        Vec3 currentMotion = this.getDeltaMovement();
-        if (this.horizontalCollision) {
-            currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+            Vec3 currentMotion = this.getDeltaMovement();
+            if (this.horizontalCollision) {
+                currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
+            }
+            this.setDeltaMovement(currentMotion);
         }
-        this.setDeltaMovement(currentMotion);
+        // In water move control, vanilla style
+        else if (isInWater() || isInLava()) {
+            // Float in water for those can't swim is done in LivingEntity#aiStep on server side
+            // Leave this handled by both side before we have a better solution
+            this.setSpeed(speed);
+            // Overwrite the zza in setSpeed
+            this.setZza((float) travelVector.z);
+            // Vanilla in water behavior includes float on water and moving very slow
+            // in lava behavior includes moving slow and sink
+            super.travel(travelVector);
+        }
+        // Walking control
+        else {
+            this.setSpeed(speed);
+
+            // Vanilla walking behavior includes going up steps
+            super.travel(travelVector);
+        }
     }
 
 
