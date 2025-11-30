@@ -105,13 +105,16 @@ public class PlayerRenderEvents {
     public void computeFovModifierEvent(ComputeFovModifierEvent event) {
         Player player = event.getPlayer();
         if (player.getVehicle() instanceof EntityDragonBase dragon) {
-            event.setNewFovModifier(event.getFovModifier() + Mth.map(
-                    Math.max(dragon.getGlidingSpeedBonus(), 0),
-                    0,
-                    1.5f,
-                    0f,
-                    0.5f
-            ));
+            // vanilla sprinting has a fov mod of 1.15, and is applied here
+            if (dragon.isFlying() || dragon.isHovering()) {
+                event.setNewFovModifier(1f + Mth.map(
+                        Math.max(dragon.getSpeed(), 0),
+                        0.15f,
+                        0.35f,
+                        0f,
+                        0.5f
+                ));
+            }
         }
 
     }

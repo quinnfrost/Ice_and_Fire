@@ -2200,6 +2200,12 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
 
     protected float glidingSpeedBonus = 0;
 
+    // speed modifiers on Attributes.MOVEMENT_SPEED to match speed in older versions
+    // TODO :: put this into config
+    protected float flightSpeedMod = 0.52f;
+    protected float swimSpeedMod = 1.0f;
+    protected float walkSpeedMod = 0.52f;
+
     @Override
     public void travel(@NotNull Vec3 pTravelVector) {
         if (this.getAnimation() == ANIMATION_SHAKEPREY || !this.canMove() && !this.isVehicle() || this.isOrderedToSit()) {
@@ -2218,14 +2224,75 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 return;
             }
 
-            float baseSpeed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
+            float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED); // 0.3
+            // target movement input
+            float strafing = rider.xxa;
+            float forward = rider.zza;
+            float vertical = 0f;
+            Vec3 travelVector = pTravelVector;
             // Flying control, include flying through waterfalls
             if (isHovering() || isFlying()) {
+                // TODO :: there's this config item IafConfig.dragonFlightSpeedMod
+                // TODO :: age speed difference
+                speed *= flightSpeedMod;
+                speed *= rider.isSprinting() ? 1.2f : 1.0f;
+
                 gliding = allowMousePitchControl && this.isSprinting();
+                if (!gliding) {
+                    // Mouse controlled yaw
+                    // Slower on going astern
+                    forward *= rider.zza > 0 ? 1.0f : 0.5f;
+                    // Slower on going sideways
+                    strafing *= 0.3f;
 
+                    if (isGoingUp() && !isGoingDown()) {
+                        vertical = 0.8f;
+                    } else if (isGoingDown() && !isGoingUp()) {
+                        vertical = -0.8f;
+                    }
 
-                float speed = getSimpleFlyingSpeed(baseSpeed);
-                Vec3 travelVector = getSimpleAirControl(pTravelVector);
+                    travelVector = new Vec3(strafing, vertical, forward);
+//                    if (travelVector.lengthSqr() > 1.0E-7D) {
+//                        travelVector = travelVector.normalize();
+//                    }
+                } else {
+                    // Diving is faster
+                    // Remember to change PlayerRenderEvents#computeFovModifierEvent when changing max bonus
+                    glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
+                                                          -0.8d,
+                                                          1.5d
+                    );
+
+                    // calc travel vector
+                    // Mouse controlled yaw and pitch
+                    strafing *= 0.1f;
+                    // Try to match the moving vector to the rider's look vector
+                    forward = Mth.abs(Mth.cos(this.getXRot() * ((float) Math.PI / 180F)));
+                    vertical = Mth.abs(Mth.sin(this.getXRot() * ((float) Math.PI / 180F)));
+                    // Pitch is still responsive to spacebar and x key
+                    if (isGoingUp() && !isGoingDown()) {
+                        vertical = Math.max(vertical, 0.5f);
+                    } else if (isGoingDown() && !isGoingUp()) {
+                        vertical = Math.min(vertical, -0.5f);
+                    } else if (isGoingUp() && isGoingDown()) {
+                        vertical = 0;
+                    }
+                    // X rotation takes minus on looking upward
+                    else if (this.getXRot() < 0) {
+                        vertical *= 1;
+                    } else if (this.getXRot() > 0) {
+                        vertical *= -1;
+                    }
+                    // normalize only if all axis acc are identical, or to prevent over speeding
+                    travelVector = new Vec3(strafing, vertical, forward).normalize();
+                }
+                DebugUtils.custom_debug_message.put("glidingSpeedBonus", String.valueOf(glidingSpeedBonus));
+                DebugUtils.custom_debug_message.put("TravelVector", travelVector.toString());
+
+                speed += glidingSpeedBonus * 0.1f;
+                // Speed bonus damping
+                glidingSpeedBonus -= glidingSpeedBonus * (travelVector.lengthSqr() > 0.25d ? 0.01f : 0.2f);
+
 
                 // Travel related logic and flags
                 // Set flag for logic and animation
@@ -2244,47 +2311,49 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     this.setTackling(false);
                 }
 
-
-                if (this.isControlledByLocalInstance()) {
-                    calculateSimpleAirMovement(travelVector, speed, pTravelVector);
-
-                    this.calculateEntityAnimation(false);
-                } else {
-                    this.setDeltaMovement(Vec3.ZERO);
-                }
-                this.tryCheckInsideBlocks();
-                this.updatePitch(this.yOld - this.getY());
-                return;
             }
             // In water move control, for those that can't swim
             else if (isInWater() || isInLava()) {
-                float speed = getSimpleFlyingSpeed(baseSpeed);
-                Vec3 travelVector = getSimpleAirControl(pTravelVector);
+                // TODO :: keep some momentum for water
+                glidingSpeedBonus = 0;
 
-                if (this.isControlledByLocalInstance()) {
-                    calculateSimpleAirMovement(travelVector, speed, pTravelVector);
+                speed *= swimSpeedMod;
 
-                    this.calculateEntityAnimation(false);
-                } else {
-                    this.setDeltaMovement(Vec3.ZERO);
+                if (isGoingUp() && !isGoingDown()) {
+                    vertical = 0.5f;
+                } else if (isGoingDown() && !isGoingUp()) {
+                    vertical = -0.5f;
                 }
+
+                travelVector = new Vec3(strafing, vertical, forward);
             }
             // Walking control
             else {
-                float speed = getSimpleFlyingSpeed(baseSpeed);
-                Vec3 travelVector = getSimpleAirControl(pTravelVector);
+                glidingSpeedBonus = 0;
 
-                if (this.isControlledByLocalInstance()) {
-                    calculateSimpleAirMovement(travelVector, speed, pTravelVector);
+                speed *= walkSpeedMod;
+                speed *= this.isSprinting() ? 1.5f : 1f;
 
-                    this.calculateEntityAnimation(true);
-                } else {
-                    this.setDeltaMovement(Vec3.ZERO);
-                }
 
-                this.tryCheckInsideBlocks();
-                this.updatePitch(this.yOld - this.getY());
+                // Inherit y motion, as vanilla does
+                vertical = (float) pTravelVector.y;
+                // Slower going back
+                forward *= rider.zza > 0 ? 1.0f : 0.2f;
+                // Slower going sideway
+                strafing *= 0.05f;
+
+                travelVector = new Vec3(strafing, vertical, forward);
             }
+
+            if (this.isControlledByLocalInstance()) {
+                calculateMountMovementSimple(travelVector, speed, pTravelVector);
+
+                this.calculateEntityAnimation(false);
+            } else {
+                this.setDeltaMovement(Vec3.ZERO);
+            }
+            this.tryCheckInsideBlocks();
+            this.updatePitch(this.yOld - this.getY());
         }
         // No rider move control
         else {
@@ -2292,145 +2361,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         }
     }
 
-    public float getSimpleFlyingSpeed(float baseSpeed) {
-        LivingEntity rider = this.getControllingPassenger();
-
-//        float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
-        float speed = baseSpeed;
-
-
-//        final float walkSpeedFactor = 0.80f;
-//        final float flightSpeedFactor = (5.2F + 1f) * 0.4f * 0.1f;
-//        final float swimSpeedFactor = 0.50f;
-
-        if (this.isFlying() || this.isHovering()) {
-            float airSpeedModifier = (float) (5.2f);
-            // Apply speed mod
-            speed *= airSpeedModifier;
-            // Apply age mod
-            speed *= Mth.map(Math.min(this.getAgeInDays(), 125),
-                             0,
-                             125,
-                             0.8f,
-                             1.2f
-            );
-
-            if (!gliding) {
-                // Mouse controlled yaw
-                speed += glidingSpeedBonus;
-
-            } else {
-                // Mouse controlled yaw and pitch
-                speed *= 1.5f;
-                // Diving is faster
-                // Remember to change PlayerRenderEvents#computeFovModifierEvent when changing max bonus
-                // TODO :: or use another value for smoother transition, like speed
-                glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
-                                                      -1.5d,
-                                                      1.5d
-                );
-                speed += glidingSpeedBonus;
-
-            }
-            // Speed bonus damping
-            glidingSpeedBonus -= (float) (glidingSpeedBonus * 0.01d);
-
-            DebugUtils.custom_debug_message.put("Gliding Speed Bonus", String.valueOf(glidingSpeedBonus));
-
-            return speed * 0.1f;
-//            return speed;
-        }
-        // In water move control, for those that can't swim
-        else if (isInWater() || isInLava()) {
-            return speed;
-        }
-        // Walking control
-        else {
-            float groundSpeedModifier = (float) (1.8F * this.getFlightSpeedModifier());
-            speed *= groundSpeedModifier;
-            // Try to match the original riding speed?
-            speed *= speed;
-
-            return speed;
-        }
-    }
-
-    public Vec3 getSimpleAirControl(Vec3 pTravelVector) {
-        LivingEntity rider = this.getControllingPassenger();
-
-        float forward = rider.zza;
-        float strafing = rider.xxa;
-        float vertical = 0;
-
-
-        if (this.isFlying() || this.isHovering()) {
-
-            if (!gliding) {
-                // Mouse controlled yaw
-                // Slower on going astern
-                forward *= rider.zza > 0 ? 1.0f : 0.5f;
-                // Slower on going sideways
-                strafing *= 0.4f;
-                if (isGoingUp() && !isGoingDown()) {
-                    vertical = 1f;
-                } else if (isGoingDown() && !isGoingUp()) {
-                    vertical = -1f;
-                }
-                // Damp the vertical motion so the dragon's head is more responsive to the control
-                else if (isControlledByLocalInstance()) {
-//                        this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.8f, 1.0f));
-                }
-            } else {
-                // Mouse controlled yaw and pitch
-                strafing *= 0.1f;
-                // Try to match the moving vector to the rider's look vector
-                forward = Mth.abs(Mth.cos(this.getXRot() * ((float) Math.PI / 180F)));
-                vertical = Mth.abs(Mth.sin(this.getXRot() * ((float) Math.PI / 180F)));
-                // Pitch is still responsive to spacebar and x key
-                if (isGoingUp() && !isGoingDown()) {
-                    vertical = Math.max(vertical, 0.5f);
-                } else if (isGoingDown() && !isGoingUp()) {
-                    vertical = Math.min(vertical, -0.5f);
-                } else if (isGoingUp() && isGoingDown()) {
-                    vertical = 0;
-                }
-                // X rotation takes minus on looking upward
-                else if (this.getXRot() < 0) {
-                    vertical *= 1;
-                } else if (this.getXRot() > 0) {
-                    vertical *= -1;
-                }
-            }
-
-            return (new Vec3(strafing, vertical, forward)).normalize();
-        }
-        // In water move control, for those that can't swim
-        else if (isInWater() || isInLava()) {
-            if (isGoingUp() && !isGoingDown()) {
-                vertical = 0.5f;
-            } else if (isGoingDown() && !isGoingUp()) {
-                vertical = -0.5f;
-            }
-
-            return (new Vec3(strafing, vertical, forward));
-        }
-        // Walking control
-        else {
-            // Inherit y motion, as vanilla does
-            vertical = (float) pTravelVector.y;
-            // Faster sprint
-            forward *= rider.isSprinting() ? 1.2f : 1.0f;
-            // Slower going back
-            forward *= rider.zza > 0 ? 1.0f : 0.2f;
-            // Slower going sideway
-            // TODO: this value needs tweak
-            strafing *= 0.05f;
-
-            return (new Vec3(strafing, vertical, forward));
-        }
-    }
-
-    public void calculateSimpleAirMovement(Vec3 travelVector, float speed, Vec3 pTravelVector) {
+    public void calculateMountMovementSimple(Vec3 travelVector, float speed, Vec3 pTravelVector) {
         if (this.isFlying() || this.isHovering()) {
             // Vanilla friction on Y axis is smaller, which will influence terminal speed for climbing and diving
             // use same friction coefficient on all axis simplifies how travel vector is computed

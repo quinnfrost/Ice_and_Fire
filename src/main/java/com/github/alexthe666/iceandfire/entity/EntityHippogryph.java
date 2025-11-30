@@ -10,7 +10,6 @@ import com.github.alexthe666.iceandfire.entity.ai.HippogryphAIMate;
 import com.github.alexthe666.iceandfire.entity.ai.HippogryphAITarget;
 import com.github.alexthe666.iceandfire.entity.ai.HippogryphAITargetItems;
 import com.github.alexthe666.iceandfire.entity.ai.HippogryphAIWander;
-import com.github.alexthe666.iceandfire.entity.debug.quinnfrost.DebugUtils;
 import com.github.alexthe666.iceandfire.entity.util.*;
 import com.github.alexthe666.iceandfire.enums.EnumHippogryphTypes;
 import com.github.alexthe666.iceandfire.inventory.ContainerHippogryph;
@@ -820,6 +819,9 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
     }
 
     public final boolean DISABLE_MOVEMENT_CHECK = false;
+    protected float flightSpeedMod = 0.35f;
+//    protected float swimSpeedMod = 1.0f;
+    protected float walkSpeedMod = 0.58f;
 
     @Override
     public void travel(@NotNull Vec3 pTravelVector) {
@@ -834,10 +836,42 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         if (this.isAlive()) {
             if (this.isVehicle() && this.getControllingPassenger() != null && this.isSaddled()) {
                 LivingEntity rider = this.getControllingPassenger();
-                float baseSpeed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
 
-                Vec3 travelVector = getSimpleAirControl(pTravelVector);
-                float speed = getSimpleFlyingSpeed(baseSpeed);
+                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
+                // target movement input
+                float strafing = rider.xxa;
+                float forward = rider.zza;
+                float vertical = 0f;
+                Vec3 travelVector = pTravelVector;
+
+                if (this.isFlying() || this.isHovering()) {
+                    // Calc speed
+                    speed *= flightSpeedMod; // flight speed factor
+                    speed *= rider.isSprinting() ? 1.5f : 1.0f; // faster sprint
+                    // Calc travel vector
+                    vertical = this.isGoingUp() ? 1.0F : this.isGoingDown() ? -1.0F : 0F;
+
+                    forward *= forward <= 0f ? 0.25f : 1.0f; // slower going back
+                    strafing *= 0.5F; // slower going sideways
+
+                    travelVector = new Vec3(strafing, vertical, forward).normalize();
+                    // update flags
+                    // Let server know we're flying before they kick us
+                    this.setNoGravity(true);
+                } else {
+                    // Calc speed
+                    speed *= walkSpeedMod; // walk and swim speed factor
+                    speed *= rider.isSprinting() ? 1.5f : 1.0f; // faster sprint
+                    // Calc travel vector
+                    vertical = (float) pTravelVector.y; // inherit vertical movement
+
+                    forward *= forward <= 0f ? 0.25f : 1.0f; // slower going back
+                    strafing *= 0.5F; // slower going sideways
+
+                    travelVector = new Vec3(strafing, vertical, forward).normalize();
+                    // update flags
+                    this.setNoGravity(false);
+                }
 
                 if (this.isControlledByLocalInstance()) {
                     if (this.isFlying() || this.isHovering()) {
@@ -845,9 +879,9 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                         this.setSpeed(speed);
                         // if vanilla travel should be used, set speed to 10x or override LivingEntity#getFrictionInfluencedSpeed, or you'll fly slow
 //                        super.travel(new Vec3(strafing, vertical, forward));
-                        calculateSimpleAirMovement(travelVector,
-                                                   speed,
-                                                   new Vec3(0.91f, 0.91f, 0.91f)
+                        calculateMountMovementSimple(travelVector,
+                                                     speed,
+                                                     new Vec3(0.91f, 0.91f, 0.91f)
                         );
                     } else {
                         this.setSpeed(speed);
@@ -922,7 +956,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         return new Vec3(strafing, vertical, forward).normalize();
     }
 
-    public void calculateSimpleAirMovement(Vec3 travelVector, float speed, Vec3 friction) {
+    public void calculateMountMovementSimple(Vec3 travelVector, float speed, Vec3 friction) {
         this.moveRelative(speed, travelVector); // speed: blocks per tick
         this.move(MoverType.SELF, this.getDeltaMovement());
 
