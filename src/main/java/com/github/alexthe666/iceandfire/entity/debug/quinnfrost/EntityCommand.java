@@ -13,63 +13,66 @@ import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 public class EntityCommand {
-    public Player issuer;
-    public List<PathfinderMob> commandEntities;
-    public CommandType commandType;
+    // 成员变量现在不是 final 的，因为它们在构造后仍可被修改
+    public final Player issuer;
+    public final CommandType commandType;
+    public List<PathfinderMob> commandEntities = new ArrayList<>();
     public Vec3 pos;
-    public List<LivingEntity> targetEntities;
+    public List<LivingEntity> targetEntities = new ArrayList<>();
 
     public enum CommandType {
         SIGNAL,
         MOVE,
         ATTACK,
-        FORCE_POS
+        FORCE_POS,
+        STOP,
+        LENGTH
     }
 
-    public EntityCommand() {
-        this.commandEntities = new ArrayList<>();
-        this.targetEntities = new ArrayList<>();
-    }
-
-    public EntityCommand(CommandType commandType, Player owner, Entity commandEntity, Vec3 pos, Entity targetEntity) {
+    // 构造函数接收必需的参数
+    public EntityCommand(CommandType commandType, Player issuer) {
         this.commandType = commandType;
-        this.issuer = owner;
-        this.pos = pos;
+        this.issuer = issuer;
+    }
 
-        this.commandEntities = new ArrayList<>();
-        DebugUtils.getDebuggableTarget(commandEntity).ifPresent(pathfinderMob -> {
-            this.commandEntities.add(pathfinderMob);
-        });
-        this.targetEntities = new ArrayList<>();
-        if (targetEntity instanceof LivingEntity livingEntity) {
-            this.targetEntities.add(livingEntity);
-        } else {
-            DebugUtils.getDebuggableTarget(targetEntity).ifPresent(pathfinderMob -> {
-                this.targetEntities.add(pathfinderMob);
-            });
+    // 流式接口方法，用于设置可选参数并返回 this
+    public EntityCommand withCommandEntity(Entity entity) {
+        if (entity != null) {
+            DebugUtils.getDebuggableTarget(entity).ifPresent(this.commandEntities::add);
         }
+        return this; // 返回当前实例以支持链式调用
     }
 
-    public EntityCommand set(CommandType commandType, Player owner, Entity commandEntity, Vec3 pos, Entity targetEntity) {
-        return new EntityCommand(commandType, owner, commandEntity, pos, targetEntity);
+    public EntityCommand withTargetEntity(Entity entity) {
+        if (entity instanceof LivingEntity livingEntity) {
+            this.targetEntities.add(livingEntity);
+        } else if (entity != null) {
+            DebugUtils.getDebuggableTarget(entity).ifPresent(this.targetEntities::add);
+        }
+        return this;
     }
 
-    public static EntityCommand empty() {
-        return new EntityCommand();
+    public EntityCommand atPosition(Vec3 pos) {
+        this.pos = pos;
+        return this;
     }
 
-    public EntityCommand attack(Player owner, Entity commandEntity, Entity targetEntity) {
-        return this.set(CommandType.ATTACK, owner, commandEntity, null, targetEntity);
+    @Override
+    public String toString() {
+        return "EntityCommand{" +
+                "issuer=" + issuer.getDisplayName().getString() +
+                ", commandType=" + commandType +
+                ", commandEntities=" + commandEntities +
+                ", pos=" + pos +
+                ", targetEntities=" + targetEntities +
+                '}';
     }
-
-    public EntityCommand move(Player owner, Entity commandEntity, Vec3 pos) {
-        return this.set(CommandType.MOVE, owner, commandEntity, pos, null);
-    }
-
 
     public boolean issue() {
         if (issuer.level().isClientSide) {
@@ -77,14 +80,9 @@ public class EntityCommand {
         }
 
         ServerPlayer player = (ServerPlayer) issuer;
-        ServerLevel level = player.serverLevel();
         switch (commandType) {
             case SIGNAL -> commandEntities.forEach(commandEntity -> {
-                IceAndFire.sendMSGToPlayer(new MessageCommandEntity(CommandType.SIGNAL,
-                                                                    commandEntity.getId(),
-                                                                    null,
-                                                                    0
-                ), player);
+                IceAndFire.sendMSGToPlayer(MessageCommandEntity.getSignalMessage(commandEntity), player);
             });
             case MOVE -> commandEntities.forEach(commandEntity -> {
                 setMoveTo(commandEntity, pos);
@@ -97,6 +95,10 @@ public class EntityCommand {
             case FORCE_POS -> commandEntities.forEach(commandEntity -> {
                 setPos(commandEntity, pos);
             });
+            case STOP -> commandEntities.forEach(commandEntity -> {
+                setMoveTo(commandEntity, null);
+                setAttackTarget(commandEntity, null);
+            });
             default -> {
                 return false;
             }
@@ -104,7 +106,7 @@ public class EntityCommand {
         return true;
     }
 
-    public static void setMoveTo(PathfinderMob commandEntity, Vec3 pos) {
+    public static void setMoveTo(@Nonnull PathfinderMob commandEntity, @Nullable Vec3 pos) {
         if (pos != null) {
             commandEntity.getNavigation().moveTo(pos.x, pos.y, pos.z, 1.0);
             if (DebugUtils.hasMemoryItem(commandEntity)) {
@@ -113,12 +115,19 @@ public class EntityCommand {
             if (commandEntity instanceof EntityDragonBase dragon && (dragon.isFlying() || dragon.isHovering())) {
                 dragon.flightManager.setFlightTarget(pos);
             }
+        } else {
+            commandEntity.getNavigation().stop();
+            if (DebugUtils.hasMemoryItem(commandEntity)) {
+                commandEntity.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
+            }
+            if (commandEntity instanceof EntityDragonBase dragon && (dragon.isFlying() || dragon.isHovering())) {
+                dragon.flightManager.setFlightTarget(null);
+            }
         }
     }
 
-    public static void setAttackTarget(PathfinderMob commandEntity, LivingEntity targetEntity) {
-
-        if (!targetEntity.equals(commandEntity)) {
+    public static void setAttackTarget(@Nonnull PathfinderMob commandEntity, @Nullable LivingEntity targetEntity) {
+        if (targetEntity != null && !targetEntity.equals(commandEntity)) {
             if (DebugUtils.hasMemoryItem(commandEntity)) {
                 commandEntity.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, targetEntity);
             }
@@ -131,7 +140,9 @@ public class EntityCommand {
         }
     }
 
-    public static void setPos(Entity entity, Vec3 pos) {
-        entity.setPos(pos.x, pos.y + 0.1, pos.z);
+    public static void setPos(@Nonnull Entity entity, @Nonnull Vec3 pos) {
+        if (pos != null) {
+            entity.setPos(pos.x, pos.y + 0.1, pos.z);
+        }
     }
 }
