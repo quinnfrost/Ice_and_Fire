@@ -60,7 +60,7 @@ public class DebuggerEventsClient {
                         selectedEntity = Pair.of(entityHitResult.getEntity(),
                                                  (float) clientPlayerEntity.getPosition(1.0f).distanceTo(entityHitResult.getLocation())
                         );
-                        IceAndFire.sendMSGToServer(new MessageCommandEntity(entityHitResult.getEntity()));
+                        IceAndFire.sendMSGToServer(MessageCommandEntity.getSignalMessage(entityHitResult.getEntity()));
                     }
                 }
 
@@ -76,14 +76,12 @@ public class DebuggerEventsClient {
                     if (lastUseKeyDown) {
                         if (result instanceof EntityHitResult entityHitResult) {
                             if (clientOptions.keyShift.isDown()) {
-                                IceAndFire.sendMSGToServer(new MessageCommandEntity(EntityCommand.CommandType.FORCE_POS,
-                                                                                    selectedEntity.getFirst().getId(),
-                                                                                    entityHitResult.getLocation(),
-                                                                                    0
+                                IceAndFire.sendMSGToServer(MessageCommandEntity.getForcePosMessage(selectedEntity.getFirst(),
+                                                                                                   entityHitResult.getLocation()
                                 ));
                             } else {
-                                IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
-                                                                                    entityHitResult.getEntity()
+                                IceAndFire.sendMSGToServer(MessageCommandEntity.getAttackMessage(selectedEntity.getFirst(),
+                                                                                                 entityHitResult.getEntity()
                                 ));
                             }
                         } else if (result instanceof BlockHitResult blockHitResult) {
@@ -94,31 +92,28 @@ public class DebuggerEventsClient {
                             );
                             if (blockHitResult.getType() != HitResult.Type.MISS) {
                                 if (clientOptions.keyShift.isDown()) {
-                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(EntityCommand.CommandType.FORCE_POS,
-                                                                                        selectedEntity.getFirst().getId(),
-                                                                                        blockHitResult.getLocation(),
-                                                                                        0
+                                    IceAndFire.sendMSGToServer(MessageCommandEntity.getForcePosMessage(selectedEntity.getFirst(),
+                                                                                                       blockHitResult.getLocation()
                                     ));
                                 } else {
-                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
-                                                                                        blockHitResult.getLocation()
+                                    IceAndFire.sendMSGToServer(MessageCommandEntity.getMoveMessage(selectedEntity.getFirst(),
+                                                                                                   blockHitResult.getLocation()
                                     ));
                                 }
                             } else {
                                 if (clientOptions.keyShift.isDown()) {
-                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(EntityCommand.CommandType.FORCE_POS,
-                                                                                        selectedEntity.getFirst().getId(),
-                                                                                        clientPlayerEntity.getPosition(1.0f).add(
-                                                                                                clientPlayerEntity.getLookAngle().scale(
-                                                                                                        selectedEntity.getSecond()))
-                                                                                        ,
-                                                                                        0
+                                    IceAndFire.sendMSGToServer(MessageCommandEntity.getForcePosMessage(selectedEntity.getFirst(),
+                                                                                                       clientPlayerEntity.getPosition(
+                                                                                                               1.0f).add(
+                                                                                                               clientPlayerEntity.getLookAngle().scale(
+                                                                                                                       selectedEntity.getSecond()))
                                     ));
                                 } else {
-                                    IceAndFire.sendMSGToServer(new MessageCommandEntity(selectedEntity.getFirst(),
-                                                                                        clientPlayerEntity.getPosition(1.0f).add(
-                                                                                                clientPlayerEntity.getLookAngle().scale(
-                                                                                                        selectedEntity.getSecond()))
+                                    IceAndFire.sendMSGToServer(MessageCommandEntity.getMoveMessage(selectedEntity.getFirst(),
+                                                                                                   clientPlayerEntity.getPosition(
+                                                                                                           1.0f).add(
+                                                                                                           clientPlayerEntity.getLookAngle().scale(
+                                                                                                                   selectedEntity.getSecond()))
                                     ));
                                 }
                             }
