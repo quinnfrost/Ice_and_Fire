@@ -30,16 +30,57 @@ public class MessageCommandEntity {
         this.targetEntityId = targetEntityId;
     }
 
-    public MessageCommandEntity(Entity commandEntityId) {
-        this(EntityCommand.CommandType.SIGNAL, commandEntityId.getId(), null, 0);
+    /**
+     * Signal client as an ACK, usually a clients side glowing hint
+     * @param commandEntity The client entity to glow
+     * @return
+     */
+    public static MessageCommandEntity getSignalMessage(Entity commandEntity) {
+        return new MessageCommandEntity(EntityCommand.CommandType.SIGNAL, commandEntity.getId(), null, 0);
     }
 
-    public MessageCommandEntity(Entity commandEntityId, Vec3 pos) {
-        this(EntityCommand.CommandType.MOVE, commandEntityId.getId(), pos, 0);
+    /**
+     * Set entity's navigation to pos, once
+     * @param commandEntity Entity with navigation
+     * @param pos Target position
+     * @return
+     */
+    public static MessageCommandEntity getMoveMessage(Entity commandEntity, Vec3 pos) {
+        return new MessageCommandEntity(EntityCommand.CommandType.MOVE, commandEntity.getId(), pos, 0);
     }
 
-    public MessageCommandEntity(Entity commandEntityId, Entity targetEntityId) {
-        this(EntityCommand.CommandType.ATTACK, commandEntityId.getId(), null, targetEntityId.getId());
+    /**
+     * Set entity to attack targetEntity, no friendly check is performed
+     * @param commandEntity Whom to attack
+     * @param targetEntity Target entity to attack
+     * @return
+     */
+    public static MessageCommandEntity getAttackMessage(Entity commandEntity, Entity targetEntity) {
+        return new MessageCommandEntity(EntityCommand.CommandType.ATTACK,
+                                        commandEntity.getId(),
+                                        null,
+                                        targetEntity.getId()
+        );
+    }
+
+    /**
+     * Teleport entity to pos
+     * This is an op message
+     * @param commandEntity
+     * @param pos
+     * @return
+     */
+    public static MessageCommandEntity getForcePosMessage(Entity commandEntity, Vec3 pos) {
+        return new MessageCommandEntity(EntityCommand.CommandType.FORCE_POS, commandEntity.getId(), pos, 0);
+    }
+
+    /**
+     * Stop entity's attack and clear navigation target
+     * @param commandEntity
+     * @return
+     */
+    public static MessageCommandEntity getStopMessage(Entity commandEntity) {
+        return new MessageCommandEntity(EntityCommand.CommandType.STOP, commandEntity.getId(), null, 0);
     }
 
     public void encoder(FriendlyByteBuf buffer) {
@@ -88,26 +129,14 @@ public class MessageCommandEntity {
                 Entity targetEntity = level.getEntity(targetEntityId);
                 if (commandType == EntityCommand.CommandType.SIGNAL) {
                     DebugUtils.getDebuggableTarget(commandEntity).ifPresent(pathfinderMob -> {
-                        IceAndFire.sendMSGToPlayer(new MessageCommandEntity(EntityCommand.CommandType.SIGNAL,
-                                                                            pathfinderMob.getId(),
-                                                                            null,
-                                                                            0
-                        ), player);
+                        IceAndFire.sendMSGToPlayer(MessageCommandEntity.getSignalMessage(pathfinderMob), player);
                     });
                 } else {
                     if (targetEntity instanceof LivingEntity livingEntity) {
-                        IceAndFire.sendMSGToPlayer(new MessageCommandEntity(EntityCommand.CommandType.SIGNAL,
-                                                                            livingEntity.getId(),
-                                                                            null,
-                                                                            livingEntity.getId()
-                        ), player);
+                        IceAndFire.sendMSGToPlayer(MessageCommandEntity.getSignalMessage(livingEntity), player);
                     } else {
                         DebugUtils.getDebuggableTarget(targetEntity).ifPresent(pathfinderMob -> {
-                            IceAndFire.sendMSGToPlayer(new MessageCommandEntity(EntityCommand.CommandType.SIGNAL,
-                                                                                pathfinderMob.getId(),
-                                                                                null,
-                                                                                pathfinderMob.getId()
-                            ), player);
+                            IceAndFire.sendMSGToPlayer(MessageCommandEntity.getSignalMessage(pathfinderMob), player);
                         });
                     }
                     EntityCommander.issueCommand(commandType,
