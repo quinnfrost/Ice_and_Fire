@@ -24,6 +24,7 @@ import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeMod;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -145,7 +146,7 @@ public class DebugUtils {
 
     public static String formatAttribute(LivingEntity entity, Attribute attribute) {
         return Optional.ofNullable(entity.getAttribute(attribute)).map(attributeInstance -> {
-            return String.format("%.1f", attributeInstance.getValue());
+            return String.format("%.4f", attributeInstance.getValue());
         }).orElse("-");
     }
 
@@ -209,7 +210,7 @@ public class DebugUtils {
     }
 
     public static List<String> getEntityNameLong(LivingEntity mob) {
-        return List.of(String.format("%s \"%s\" [%s]/%d (%.1f/%s)/%s+%s",
+        return List.of(String.format("%s \"%s\" [%s]/%d (%.1f/%s)/%s+%s %s",
                                      mob.getName().getString(),
                                      mob.getCustomName() == null ? "-" : mob.getCustomName(),
                                      mob.getEncodeId(),
@@ -217,7 +218,8 @@ public class DebugUtils {
                                      mob.getHealth(),
                                      formatAttribute(mob, Attributes.MAX_HEALTH),
                                      formatAttribute(mob, Attributes.ARMOR),
-                                     formatAttribute(mob, Attributes.ARMOR_TOUGHNESS)
+                                     formatAttribute(mob, Attributes.ARMOR_TOUGHNESS),
+                                     mob.getAirSupply()
                        )
         );
     }
@@ -277,7 +279,8 @@ public class DebugUtils {
 //                String.format("AttackSpeed: %.2f", formatAttribute(mob, Attributes.ATTACK_SPEED)),
 //                String.format("KnockbackResistance: %.2f", formatAttribute(mob, Attributes.KNOCKBACK_RESISTANCE)),
 //                String.format("FlyingSpeed: %s", formatAttribute(mob, Attributes.FLYING_SPEED)),
-                String.format("MovementSpeed: %s", formatAttribute(mob, Attributes.MOVEMENT_SPEED))
+                String.format("MovementSpeed: %s", formatAttribute(mob, Attributes.MOVEMENT_SPEED)),
+                String.format("StepHeight: %s(%s)", formatAttribute(mob, ForgeMod.STEP_HEIGHT.get()), mob.getStepHeight())
         );
     }
 

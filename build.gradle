@@ -96,7 +96,7 @@ minecraft {
 
             property 'forge.logging.markers', 'REGISTRYDUMP'
 
-
+            jvmArg "-XX:+AllowEnhancedClassRedefinition"
         }
 
         server {
@@ -106,7 +106,7 @@ minecraft {
             arg "-mixin.config=citadel.mixins.json"
             property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
 
-
+            jvmArg "-XX:+AllowEnhancedClassRedefinition"
         }
 
         data {
