@@ -34,6 +34,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,16 +42,31 @@ import javax.annotation.Nullable;
 import java.util.Random;
 
 public class EntityIceDragon extends EntityDragonBase {
-    public static final ResourceLocation FEMALE_LOOT = new ResourceLocation("iceandfire", "entities/dragon/ice_dragon_female");
-    public static final ResourceLocation MALE_LOOT = new ResourceLocation("iceandfire", "entities/dragon/ice_dragon_male");
-    public static final ResourceLocation SKELETON_LOOT = new ResourceLocation("iceandfire", "entities/dragon/ice_dragon_skeleton");
+    public static final ResourceLocation FEMALE_LOOT = new ResourceLocation("iceandfire",
+                                                                            "entities/dragon/ice_dragon_female"
+    );
+    public static final ResourceLocation MALE_LOOT = new ResourceLocation("iceandfire",
+                                                                          "entities/dragon/ice_dragon_male"
+    );
+    public static final ResourceLocation SKELETON_LOOT = new ResourceLocation("iceandfire",
+                                                                              "entities/dragon/ice_dragon_skeleton"
+    );
 
     public EntityIceDragon(Level worldIn) {
         this(IafEntityRegistry.ICE_DRAGON.get(), worldIn);
     }
 
     public EntityIceDragon(EntityType<?> t, Level worldIn) {
-        super(t, worldIn, DragonType.ICE, 1, 1 + IafConfig.dragonAttackDamage, IafConfig.dragonHealth * 0.04, IafConfig.dragonHealth, 0.15F, 0.4F);
+        super(t,
+              worldIn,
+              DragonType.ICE,
+              1,
+              1 + IafConfig.dragonAttackDamage,
+              IafConfig.dragonHealth * 0.04,
+              IafConfig.dragonHealth,
+              0.15F,
+              0.4F
+        );
         ANIMATION_SPEAK = Animation.create(20);
         ANIMATION_BITE = Animation.create(35);
         ANIMATION_SHAKEPREY = Animation.create(65);
@@ -66,7 +82,9 @@ public class EntityIceDragon extends EntityDragonBase {
         if (entity instanceof EntityDragonBase && !this.isTame()) {
             return entity.getType() != this.getType() && this.getBbWidth() >= entity.getBbWidth() && !((EntityDragonBase) entity).isMobDead();
         }
-        return entity instanceof Player || DragonUtils.isDragonTargetable(entity, IafTagRegistry.ICE_DRAGON_TARGETS) || entity instanceof WaterAnimal || !this.isTame() && DragonUtils.isVillager(entity);
+        return entity instanceof Player || DragonUtils.isDragonTargetable(entity,
+                                                                          IafTagRegistry.ICE_DRAGON_TARGETS
+        ) || entity instanceof WaterAnimal || !this.isTame() && DragonUtils.isVillager(entity);
     }
 
     @Override
@@ -160,8 +178,18 @@ public class EntityIceDragon extends EntityDragonBase {
                     break;
                 case SHAKE_PREY:
                     boolean flag = false;
-                    if (new Random().nextInt(2) == 0 && isDirectPathBetweenPoints(this, this.position().add(0, this.getBbHeight() / 2, 0), entityIn.position().add(0, entityIn.getBbHeight() / 2, 0)) &&
-                        entityIn.getBbWidth() < this.getBbWidth() * 0.5F && this.getControllingPassenger() == null && this.getDragonStage() > 1 && !(entityIn instanceof EntityDragonBase) && !DragonUtils.isAnimaniaMob(entityIn)) {
+                    if (new Random().nextInt(2) == 0 && isDirectPathBetweenPoints(this,
+                                                                                  this.position().add(0,
+                                                                                                      this.getBbHeight() / 2,
+                                                                                                      0
+                                                                                  ),
+                                                                                  entityIn.position().add(0,
+                                                                                                          entityIn.getBbHeight() / 2,
+                                                                                                          0
+                                                                                  )
+                    ) &&
+                            entityIn.getBbWidth() < this.getBbWidth() * 0.5F && this.getControllingPassenger() == null && this.getDragonStage() > 1 && !(entityIn instanceof EntityDragonBase) && !DragonUtils.isAnimaniaMob(
+                            entityIn)) {
                         this.setAnimation(ANIMATION_SHAKEPREY);
                         flag = true;
                         entityIn.startRiding(this);
@@ -191,7 +219,10 @@ public class EntityIceDragon extends EntityDragonBase {
             this.flyTicks = 0;
         }
         if (!level().isClientSide && attackTarget != null) {
-            if (this.getBoundingBox().inflate(0 + this.getRenderSize() * 0.33F, 0 + this.getRenderSize() * 0.33F, 0 + this.getRenderSize() * 0.33F).intersects(attackTarget.getBoundingBox())) {
+            if (this.getBoundingBox().inflate(0 + this.getRenderSize() * 0.33F,
+                                              0 + this.getRenderSize() * 0.33F,
+                                              0 + this.getRenderSize() * 0.33F
+            ).intersects(attackTarget.getBoundingBox())) {
                 doHurtTarget(attackTarget);
             }
             if (this.groundAttack == IafDragonAttacks.Ground.FIRE && (usingGroundAttack || this.onGround())) {
@@ -203,7 +234,10 @@ public class EntityIceDragon extends EntityDragonBase {
                 double difZ = attackTarget.getZ() - this.getZ();
                 this.setDeltaMovement(this.getDeltaMovement().add(difX * 0.1D, difY * 0.1D, difZ * 0.1D));
 
-                if (this.getBoundingBox().inflate(1 + this.getRenderSize() * 0.5F, 1 + this.getRenderSize() * 0.5F, 1 + this.getRenderSize() * 0.5F).intersects(attackTarget.getBoundingBox())) {
+                if (this.getBoundingBox().inflate(1 + this.getRenderSize() * 0.5F,
+                                                  1 + this.getRenderSize() * 0.5F,
+                                                  1 + this.getRenderSize() * 0.5F
+                ).intersects(attackTarget.getBoundingBox())) {
                     doHurtTarget(attackTarget);
                     usingGroundAttack = true;
                     randomizeAttacks();
@@ -269,7 +303,7 @@ public class EntityIceDragon extends EntityDragonBase {
                 d3 = d3 + this.random.nextGaussian() * 0.007499999832361937D * inaccuracy;
                 d4 = d4 + this.random.nextGaussian() * 0.007499999832361937D * inaccuracy;
                 EntityDragonIceCharge entitylargefireball = new EntityDragonIceCharge(
-                    IafEntityRegistry.ICE_DRAGON_CHARGE.get(), level(), this, d2, d3, d4);
+                        IafEntityRegistry.ICE_DRAGON_CHARGE.get(), level(), this, d2, d3, d4);
                 float size = this.isBaby() ? 0.4F : this.shouldDropLoot() ? 1.3F : 0.8F;
                 entitylargefireball.setPos(headVec.x, headVec.y, headVec.z);
                 if (!level().isClientSide) {
@@ -318,27 +352,28 @@ public class EntityIceDragon extends EntityDragonBase {
 
     @Override
     public void travel(@NotNull Vec3 pTravelVector) {
-        float flyingSpeed;
-        if (/* Always false on the server */ this.isInWater()) {
-            // In water special
-            if (this.isEffectiveAi() && this.getControllingPassenger() == null) {
-                // Ice dragons swim faster
-                this.moveRelative(this.getSpeed(), pTravelVector);
-                this.move(MoverType.SELF, this.getDeltaMovement());
-                this.setDeltaMovement(this.getDeltaMovement().scale(0.9D));
-                if (this.getTarget() == null) {
-//                    this.setDeltaMovement(this.getDeltaMovement().add(0.0D, -0.005D, 0.0D));
-                }
-            } else if (allowLocalMotionControl && this.getControllingPassenger() != null && !isHovering() && !isFlying()) {
-                LivingEntity rider = (LivingEntity) this.getControllingPassenger();
+        // rider control, water related
+        if (allowLocalMotionControl && this.getControllingPassenger() != null) {
+            LivingEntity rider = this.getControllingPassenger();
+            // this value is modified in updateAttribute for speeding with age
+            float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED); // 0.3
+            // target movement input
+            float strafing = rider.xxa;
+            float forward = rider.zza;
+            float vertical = 0f;
+            Vec3 travelVector = pTravelVector;
 
-                float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
-                // Bigger difference in speed for young and elder dragons
-                float waterSpeedMod =  (float) (0.42f + 0.1 * Mth.map(speed, this.minimumSpeed, this.maximumSpeed, 0f, 1.5f));
-                speed *= waterSpeedMod;
+            // fully in water
+            if (this.isInWater()) {
+                // calc speed
+                speed *= this.swimSpeedModIceDragon;
                 speed *= rider.isSprinting() ? 1.5f : 1.0f;
 
-                float vertical = 0f;
+                // calc travelVec
+                // Slower going back
+                forward *= rider.zza > 0 ? 1.0f : 0.75f;
+                // Slower going sideway
+                strafing *= 0.4f;
                 if (isGoingUp() && !isGoingDown()) {
                     vertical = 1f;
                 } else if (isGoingDown() && !isGoingUp()) {
@@ -347,12 +382,9 @@ public class EntityIceDragon extends EntityDragonBase {
                     // Try floating
                     this.setDeltaMovement(this.getDeltaMovement().multiply(1.0f, 0.5f, 1.0f));
                 }
+                travelVector = new Vec3(strafing, vertical, forward);
 
-                Vec3 travelVector = new Vec3(
-                        rider.xxa,
-                        vertical,
-                        rider.zza
-                );
+                // calc movement
                 if (this.isControlledByLocalInstance()) {
                     this.setSpeed(speed);
 
@@ -363,62 +395,80 @@ public class EntityIceDragon extends EntityDragonBase {
                     if (this.horizontalCollision) {
                         currentMotion = new Vec3(currentMotion.x, 0.2D, currentMotion.z);
                     }
-                    this.setDeltaMovement(currentMotion.scale(0.9D));
+                    this.setDeltaMovement(currentMotion.scale(0.8D));
 
                     this.calculateEntityAnimation(false);
                 } else {
                     this.setDeltaMovement(Vec3.ZERO);
                 }
                 this.tryCheckInsideBlocks();
+            }
+            // water too shallow, or just above water
+            else if (this.getFluidTypeHeight(ForgeMod.WATER_TYPE.get()) > 0d
+                    || this.level().getBlockState(this.getBlockPosBelowThatAffectsMyMovement()).getFluidState().is(
+                    FluidTags.WATER)) {
+                // calc speed
+//                    float groundSpeedModifier = (float) (1.8F * this.getFlightSpeedModifier());
+//                    speed *= groundSpeedModifier;
+
+                // TODO :: impl getFlightSpeedModifier
+                speed *= 1.2f; // speed modifier for ice dragon
+
+                // calc travelVec
+                // ice dragon do not sink in water
+//                vertical = (float) pTravelVector.y;
+                // Faster sprint
+                forward *= rider.isSprinting() ? 1.2f : 1.0f;
+                // Slower going back
+                forward *= rider.zza > 0 ? 1.0f : 0.2f;
+                // Slower going sideway
+                strafing *= 0.05f;
+
+                if (this.isControlledByLocalInstance()) {
+                    this.setSpeed(speed);
+
+                    // Vanilla walking behavior includes going up steps
+                    super.travel(new Vec3(strafing, vertical, forward));
+
+                    Vec3 currentMotion = this.getDeltaMovement();
+                    if (this.horizontalCollision) {
+                        currentMotion = new Vec3(currentMotion.x, 0.2D, currentMotion.z);
+                    }
+                    this.setDeltaMovement(currentMotion.scale(1.0D));
+                } else {
+                    this.setDeltaMovement(Vec3.ZERO);
+                }
+                this.tryCheckInsideBlocks();
+//            this.updatePitch(this.yOld - this.getY());
+
+            }
+            // walk on water, might be replaced by always flying out of water
+//            else if (this.level().getBlockState(this.getBlockPosBelowThatAffectsMyMovement()).getFluidState().is(
+//                    FluidTags.WATER)) {
+//                super.travel(pTravelVector);
+//            }
+            // not in water, fallback to super.travel
+            else {
+                super.travel(pTravelVector);
+            }
+        }
+        // non rider control, water related
+        else {
+            if (this.isEffectiveAi() && this.getControllingPassenger() == null
+                    && this.getFluidTypeHeight(ForgeMod.WATER_TYPE.get()) > 0d) {
+                // FIXME :: incorrect AI movement speed
+                // Ice dragons swim faster
+                this.moveRelative(this.getSpeed(), pTravelVector);
+                this.move(MoverType.SELF, this.getDeltaMovement());
+                this.setDeltaMovement(this.getDeltaMovement().scale(0.9D));
+                if (this.getTarget() == null) {
+//                    this.setDeltaMovement(this.getDeltaMovement().add(0.0D, -0.005D, 0.0D));
+                }
             } else {
                 super.travel(pTravelVector);
             }
-
         }
-        // Over water special
-        else if (allowLocalMotionControl && this.getControllingPassenger() != null && !isHovering() && !isFlying()
-                && this.level().getBlockState(this.getBlockPosBelowThatAffectsMyMovement()).getFluidState().is(FluidTags.WATER)) {
-            // Movement when walking on the water, mainly used for not slowing down when jumping out of water
-            LivingEntity rider = (LivingEntity) this.getControllingPassenger();
 
-            double forward = rider.zza;
-            double strafing = rider.xxa;
-            // Inherit y motion for dropping
-            double vertical = pTravelVector.y;
-            float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
-
-            float groundSpeedModifier = (float) (1.8F * this.getFlightSpeedModifier());
-            speed *= groundSpeedModifier;
-            // Try to match the original riding speed
-//            forward *= speed;
-            // Faster sprint
-            forward *= rider.isSprinting() ? 1.2f : 1.0f;
-            // Slower going back
-            forward *= rider.zza > 0 ? 1.0f : 0.2f;
-            // Slower going sideway
-            strafing *= 0.05f;
-
-            if (this.isControlledByLocalInstance()) {
-                flyingSpeed = speed * 0.1F;
-                this.setSpeed(speed);
-
-                // Vanilla walking behavior includes going up steps
-                super.travel(new Vec3(strafing, vertical, forward));
-
-                Vec3 currentMotion = this.getDeltaMovement();
-                if (this.horizontalCollision) {
-                    currentMotion = new Vec3(currentMotion.x, 0.2D, currentMotion.z);
-                }
-                this.setDeltaMovement(currentMotion.scale(1.0D));
-            } else {
-                this.setDeltaMovement(Vec3.ZERO);
-            }
-            this.tryCheckInsideBlocks();
-//            this.updatePitch(this.yOld - this.getY());
-            return;
-        } else {
-            super.travel(pTravelVector);
-        }
     }
 
     @Override
@@ -447,7 +497,7 @@ public class EntityIceDragon extends EntityDragonBase {
                     d4 = d4 + this.random.nextGaussian() * 0.007499999832361937D * inaccuracy;
                     this.playSound(IafSoundRegistry.ICEDRAGON_BREATH, 4, 1);
                     EntityDragonIceCharge entitylargefireball = new EntityDragonIceCharge(
-                        IafEntityRegistry.ICE_DRAGON_CHARGE.get(), level(), this, d2, d3, d4);
+                            IafEntityRegistry.ICE_DRAGON_CHARGE.get(), level(), this, d2, d3, d4);
                     float size = this.isBaby() ? 0.4F : this.shouldDropLoot() ? 1.3F : 0.8F;
                     entitylargefireball.setPos(headVec.x, headVec.y, headVec.z);
                     if (!level().isClientSide) {
@@ -513,7 +563,7 @@ public class EntityIceDragon extends EntityDragonBase {
                 d4 = d4 + this.random.nextGaussian() * 0.007499999832361937D * inaccuracy;
                 this.playSound(IafSoundRegistry.FIREDRAGON_BREATH, 4, 1);
                 EntityDragonIceCharge entitylargefireball = new EntityDragonIceCharge(
-                    IafEntityRegistry.ICE_DRAGON_CHARGE.get(), level(), this, d2, d3, d4);
+                        IafEntityRegistry.ICE_DRAGON_CHARGE.get(), level(), this, d2, d3, d4);
                 // FIXME :: Unused
                 // float size = this.isBaby() ? 0.4F : this.shouldDropLoot() ? 1.3F : 0.8F;
                 entitylargefireball.setPos(headVec.x, headVec.y, headVec.z);
@@ -541,11 +591,27 @@ public class EntityIceDragon extends EntityDragonBase {
             double progressZ = headPos.z + d4 * (i / (float) distance);
             if (canPositionBeSeen(progressX, progressY, progressZ)) {
                 if (level().isClientSide && random.nextInt(particleCount) == 0) {
-                    IceAndFire.PROXY.spawnDragonParticle(EnumParticles.DragonIce, headPos.x, headPos.y, headPos.z, 0, 0, 0, this);
+                    IceAndFire.PROXY.spawnDragonParticle(EnumParticles.DragonIce,
+                                                         headPos.x,
+                                                         headPos.y,
+                                                         headPos.z,
+                                                         0,
+                                                         0,
+                                                         0,
+                                                         this
+                    );
                 }
             } else {
                 if (!level().isClientSide) {
-                    HitResult result = this.level().clip(new ClipContext(new Vec3(this.getX(), this.getY() + this.getEyeHeight(), this.getZ()), new Vec3(progressX, progressY, progressZ), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+                    HitResult result = this.level().clip(new ClipContext(new Vec3(this.getX(),
+                                                                                  this.getY() + this.getEyeHeight(),
+                                                                                  this.getZ()
+                    ),
+                                                                         new Vec3(progressX, progressY, progressZ),
+                                                                         ClipContext.Block.COLLIDER,
+                                                                         ClipContext.Fluid.NONE,
+                                                                         this
+                    ));
                     Vec3 vec3 = result.getLocation();
                     BlockPos pos = BlockPos.containing(vec3);
                     IafDragonDestructionManager.destroyAreaBreath(level(), pos, this);
@@ -557,7 +623,10 @@ public class EntityIceDragon extends EntityDragonBase {
             double spawnY = burnY + (random.nextFloat() * 3.0) - 1.5;
             double spawnZ = burnZ + (random.nextFloat() * 3.0) - 1.5;
             if (!level().isClientSide) {
-                IafDragonDestructionManager.destroyAreaBreath(level(), BlockPos.containing(spawnX, spawnY, spawnZ), this);
+                IafDragonDestructionManager.destroyAreaBreath(level(),
+                                                              BlockPos.containing(spawnX, spawnY, spawnZ),
+                                                              this
+                );
             }
         }
     }
@@ -642,7 +711,14 @@ public class EntityIceDragon extends EntityDragonBase {
                 double d2 = this.random.nextGaussian() * 0.02D;
                 double d0 = this.random.nextGaussian() * 0.02D;
                 double d1 = this.random.nextGaussian() * 0.02D;
-                IceAndFire.PROXY.spawnParticle(EnumParticles.Snowflake, this.getX() + (double) (this.random.nextFloat() * this.getBbWidth() * 2.0F) - (double) this.getBbWidth(), this.getY() + (double) (this.random.nextFloat() * this.getBbHeight()), this.getZ() + (double) (this.random.nextFloat() * this.getBbWidth() * 2.0F) - (double) this.getBbWidth(), d2, d0, d1);
+                IceAndFire.PROXY.spawnParticle(EnumParticles.Snowflake,
+                                               this.getX() + (double) (this.random.nextFloat() * this.getBbWidth() * 2.0F) - (double) this.getBbWidth(),
+                                               this.getY() + (double) (this.random.nextFloat() * this.getBbHeight()),
+                                               this.getZ() + (double) (this.random.nextFloat() * this.getBbWidth() * 2.0F) - (double) this.getBbWidth(),
+                                               d2,
+                                               d0,
+                                               d1
+                );
             }
         }
     }

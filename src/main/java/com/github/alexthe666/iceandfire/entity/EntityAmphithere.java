@@ -51,6 +51,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -354,12 +355,23 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         if (level().getDifficulty() == Difficulty.PEACEFUL && this.getTarget() instanceof Player) {
             this.setTarget(null);
         }
-        if (this.isInWater() && this.jumping) {
-            this.setDeltaMovement(this.getDeltaMovement().x,
-                                  this.getDeltaMovement().y + 0.1D,
-                                  this.getDeltaMovement().z
-            );
+        // Ai float in water is also processed in LivingEntity#aiStep, done by jumpInFluid, which adds 0.3 on y axis
+        // However, aiStep is only ticked on server, so no auto float on ridding on client
+//        if (this.isInWater() && this.jumping) {
+//            this.setDeltaMovement(this.getDeltaMovement().x,
+//                                  this.getDeltaMovement().y + 0.1D,
+//                                  this.getDeltaMovement().z
+//            );
+//        }
+
+        // landing logic
+        if (this.getControllingPassenger() == null && !this.isOverAir() && this.isFlying() && ticksFlying > 25) {
+            this.setFlying(false);
         }
+        if (this.getControllingPassenger() == null && isFlying() && this.onGround()) {
+            this.setFlying(false);
+        }
+
         if (this.isBaby() && this.getTarget() != null) {
             this.setTarget(null);
         }
@@ -391,9 +403,6 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             } else {
                 ticksFlying = 0;
             }
-        }
-        if (isFlying() && this.onGround()) {
-            this.setFlying(false);
         }
         if (sitting && sitProgress < 20.0F) {
             sitProgress += 0.5F;
@@ -759,22 +768,13 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
         }
         // Take off logic
         // TODO: move and separate into ridden and unridden take off
-        if (this.isGoingUp() && !level().isClientSide) {
-            if (!this.isFlying()) {
-                this.setDeltaMovement(this.getDeltaMovement().add(0, 1, 0));
-                this.setFlying(true);
-            }
-        }
-        if (!this.isOverAir() && this.isFlying() && ticksFlying > 25) {
-            this.setFlying(false);
-        }
-        if (this.dismountIAF()) {
-            if (this.isFlying()) {
-                if (this.onGround()) {
-                    this.setFlying(false);
-                }
-            }
-        }
+//        if (this.isGoingUp() && !level().isClientSide) {
+//            if (!this.isFlying()) {
+//                this.setDeltaMovement(this.getDeltaMovement().add(0, 1, 0));
+//                this.setFlying(true);
+//            }
+//        }
+
         if (this.getUntamedRider() != null && this.getUntamedRider().isShiftKeyDown()) {
             if (this.getUntamedRider() instanceof LivingEntity rider) {
                 EntityDataProvider.getCapability(rider).ifPresent(data -> data.miscData.setDismounted(true));
@@ -782,24 +782,11 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 
             this.getUntamedRider().stopRiding();
         }
-        if (this.attack() && this.getControllingPassenger() != null && this.getControllingPassenger() instanceof Player) {
-            LivingEntity riderTarget = DragonUtils.riderLookingAtEntity(this,
-                                                                        (Player) this.getControllingPassenger(),
-                                                                        2.5D
-            );
-            if (this.getAnimation() != ANIMATION_BITE) {
-                this.setAnimation(ANIMATION_BITE);
-            }
-            if (riderTarget != null) {
-                riderTarget.hurt(this.level().damageSources().mobAttack(this),
-                                 ((int) this.getAttribute(Attributes.ATTACK_DAMAGE).getValue())
-                );
-            }
-        }
+
         if (target != null && this.isOwnedBy(target)) {
             this.setTarget(null);
         }
-        if (target != null && this.onGround() && this.isFlying() && ticksFlying > 40) {
+        if (this.getControllingPassenger() == null && target != null && this.onGround() && this.isFlying() && ticksFlying > 40) {
             this.setFlying(false);
         }
     }
@@ -1091,21 +1078,22 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                     strafing *= 0.4f;
                     // space bar and x key
                     if (isGoingUp() && !isGoingDown()) {
-                        vertical = 1f;
+                        vertical = 0.6f;
                     } else if (isGoingDown() && !isGoingUp()) {
-                        vertical = -1f;
+                        vertical = -0.6f;
                     }
 
                     // Amphithere cannot hover
                     forward = Math.max(forward, 0.8f);
                     travelVector = new Vec3(strafing, vertical, forward);
 
+
                 } else {
                     // calc speed
                     speed *= swimSpeedMod;
                     // Diving is faster
                     glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
-                                                          -0.8d,
+                                                          -1.5d,
                                                           1.5d
                     );
                     speed += glidingSpeedBonus * 0.1f;
@@ -1139,6 +1127,10 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 // Speed bonus damping
                 glidingSpeedBonus -= glidingSpeedBonus * (travelVector.lengthSqr() > 0.25f ? 0.01f : 0.2f);
 
+                // w and s key for minor speed control
+                travelVector = travelVector.scale(
+                        rider.zza > 1e-5f ? 1f : rider.zza < -1e-5f ? 0.8f : 0.9f
+                );
 
             }
             // swim control
@@ -1169,9 +1161,9 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
                 vertical = (float) pTravelVector.y;
 
                 // Slower going back
-                forward *= rider.zza > 0 ? 1.0f : 0.2f;
+                forward *= rider.zza > 0 ? 1.0f : 0.45f;
                 // Slower going sideway
-                strafing *= 0.05f;
+                strafing *= 0.25f;
 
                 travelVector = new Vec3(strafing, vertical, forward);
             }
@@ -1179,7 +1171,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             if (this.isControlledByLocalInstance()) {
                 calculateMountMovementSimple(travelVector, speed);
 
-                this.calculateEntityAnimation(false);
+//                this.calculateEntityAnimation(false);
             } else {
                 this.setDeltaMovement(Vec3.ZERO);
             }
@@ -1202,6 +1194,11 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             this.setDeltaMovement(this.getDeltaMovement().multiply(new Vec3(0.9, 0.9, 0.9)));
 
             Vec3 currentMotion = this.getDeltaMovement();
+            // Extra gravity punishment for flying too slow, yet still allow going stright up, but slower
+//            if (currentMotion.lengthSqr() < Mth.square(8.5f / 20f)
+//                    && currentMotion.y * Math.abs(currentMotion.y) > -currentMotion.horizontalDistanceSqr()) {
+//                currentMotion = currentMotion.add(0, -0.01D, 0);
+//            }
             if (this.horizontalCollision) {
                 currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
             }
@@ -1217,6 +1214,19 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
             // Vanilla in water behavior includes float on water and moving very slow
             // in lava behavior includes moving slow and sink
             super.travel(travelVector);
+
+            // auto float && assist floating
+            if (this.isInWater() && !this.isGoingDown()
+                    && (!this.isEyeInFluidType(ForgeMod.WATER_TYPE.get()) || this.isGoingUp())) {
+                if (this.getRandom().nextFloat() < 1F) {
+                    this.setDeltaMovement(this.getDeltaMovement().x,
+                                          this.getDeltaMovement().y + 0.02D,
+                                          this.getDeltaMovement().z
+                    );
+                }
+            }
+
+
         }
         // Walking control
         else {
@@ -1354,6 +1364,8 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 //        }
     }
 
+    protected float spacebarTick = 0f;
+
     /**
      * This method handles rider specific stuff, except basic movement control <br>
      * Rider specific actions such as rotation following and jump should be handled here <br>
@@ -1378,6 +1390,50 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 //            }
 //            this.setDeltaMovement(vec3.add(0, vertical, 0));
 //        }
+        if (this.attack() && this.getControllingPassenger() != null && this.getControllingPassenger() instanceof Player) {
+            LivingEntity riderTarget = DragonUtils.riderLookingAtEntity(this,
+                                                                        (Player) this.getControllingPassenger(),
+                                                                        2.5D
+            );
+            if (this.getAnimation() != ANIMATION_BITE) {
+                this.setAnimation(ANIMATION_BITE);
+            }
+            if (riderTarget != null) {
+                riderTarget.hurt(this.level().damageSources().mobAttack(this),
+                                 ((int) this.getAttribute(Attributes.ATTACK_DAMAGE).getValue())
+                );
+            }
+        }
+        // 按空格上升时累积计时（与 EntityDragonBase 行为一致）
+        if (this.isGoingUp()) {
+            if (!this.isFlying() && !this.isHovering()) {
+                this.spacebarTick += 2f;
+            }
+        }
+
+        // 每个刻减少计时器（不会降到负）
+        if (this.spacebarTick > 0f) {
+            this.spacebarTick = Math.max(0f, this.spacebarTick - 1f);
+        }
+
+        // 按住超过阈值触发起飞/悬停（与 Dragon 的阈值相同）
+        if (this.spacebarTick > 20f && this.getOwner() != null && this.getPassengers().contains(this.getOwner()) && !this.isFlying() && !this.isHovering()) {
+            if (!this.isInWater()) {
+                this.setFlying(true);
+                this.spacebarTick = 0f;
+                this.glidingSpeedBonus = 0f;
+            }
+        }
+        if (this.dismountIAF()) {
+            if (this.isFlying()) {
+                if (this.onGround()) {
+                    this.setFlying(false);
+                }
+            }
+        }
+        if (this.isGoingDown() && !this.isOverAir() && this.isFlying()) {
+            this.setFlying(false);
+        }
     }
 
 

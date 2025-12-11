@@ -60,6 +60,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.NotNull;
 
@@ -819,8 +820,8 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
     }
 
     public final boolean DISABLE_MOVEMENT_CHECK = false;
-    protected float flightSpeedMod = 0.35f;
-//    protected float swimSpeedMod = 1.0f;
+    protected float flightSpeedMod = 0.28f;
+    protected float swimSpeedMod = 1.0f;
     protected float walkSpeedMod = 0.58f;
 
     @Override
@@ -844,6 +845,11 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                 float vertical = 0f;
                 Vec3 travelVector = pTravelVector;
 
+                /*
+                Hippogryph flying behavior
+                1. only hover and move, w/a/s/d control
+                2. ctrl to add extra speed
+                 */
                 if (this.isFlying() || this.isHovering()) {
                     // Calc speed
                     speed *= flightSpeedMod; // flight speed factor
@@ -851,13 +857,36 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                     // Calc travel vector
                     vertical = this.isGoingUp() ? 1.0F : this.isGoingDown() ? -1.0F : 0F;
 
-                    forward *= forward <= 0f ? 0.25f : 1.0f; // slower going back
+                    forward *= forward <= 0f ? 0.4f : 1.0f; // slower going back
                     strafing *= 0.5F; // slower going sideways
 
-                    travelVector = new Vec3(strafing, vertical, forward).normalize();
+                    travelVector = new Vec3(strafing, vertical, forward);
                     // update flags
                     // Let server know we're flying before they kick us
-                    this.setNoGravity(true);
+//                    this.setNoGravity(true);
+                } else if (this.getFluidTypeHeight(ForgeMod.WATER_TYPE.get()) > 0f) {
+                    // Calc speed
+                    speed *= swimSpeedMod;
+                    // Calc travel vector
+                    vertical = (float) pTravelVector.y; // inherit vertical movement
+
+                    forward *= forward <= 0f ? 0.4f : 1.0f; // slower going back
+                    strafing *= 0.5F; // slower going sideways
+
+                    if (this.getFluidTypeHeight(ForgeMod.WATER_TYPE.get()) > 0d) {
+                        if (this.isGoingDown()) {
+                            vertical = Math.max(vertical - 0.5f, -1f);
+                        } else if (this.isGoingUp()) {
+                            vertical = Math.min(vertical + 0.5f, 1f);
+                        } else if (!this.isEyeInFluidType(ForgeMod.WATER_TYPE.get()) && !this.isGoingDown()) {
+//                            vertical = Math.min(vertical + 0.5f, 1f);
+                        }
+                    }
+
+
+                    travelVector = new Vec3(strafing, vertical, forward);
+                    // update flags
+//                    this.setNoGravity(false);
                 } else {
                     // Calc speed
                     speed *= walkSpeedMod; // walk and swim speed factor
@@ -865,12 +894,13 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                     // Calc travel vector
                     vertical = (float) pTravelVector.y; // inherit vertical movement
 
-                    forward *= forward <= 0f ? 0.25f : 1.0f; // slower going back
+                    forward *= forward <= 0f ? 0.5f : 1.0f; // slower going back
                     strafing *= 0.5F; // slower going sideways
 
-                    travelVector = new Vec3(strafing, vertical, forward).normalize();
+
+                    travelVector = new Vec3(strafing, vertical, forward);
                     // update flags
-                    this.setNoGravity(false);
+//                    this.setNoGravity(false);
                 }
 
                 if (this.isControlledByLocalInstance()) {
@@ -881,8 +911,24 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
 //                        super.travel(new Vec3(strafing, vertical, forward));
                         calculateMountMovementSimple(travelVector,
                                                      speed,
-                                                     new Vec3(0.91f, 0.91f, 0.91f)
+                                                     new Vec3(0.91f, 0.91f, 0.91f),
+                                                     pTravelVector
                         );
+                    } else if (this.isInWater() || this.isInLava()) {
+                        this.setSpeed(speed);
+                        super.travel(travelVector);
+
+                        // auto float && assist floating
+                        if (this.isInWater() && !this.isGoingDown()
+                                && (!this.isEyeInFluidType(ForgeMod.WATER_TYPE.get()) || this.isGoingUp())) {
+                            if (this.getRandom().nextFloat() < 1F) {
+                                this.setDeltaMovement(this.getDeltaMovement().x,
+                                                      this.getDeltaMovement().y + 0.02D,
+                                                      this.getDeltaMovement().z
+                                );
+                            }
+                        }
+
                     } else {
                         this.setSpeed(speed);
                         super.travel(travelVector);
@@ -892,7 +938,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
                     this.noPhysics = DISABLE_MOVEMENT_CHECK;
                 }
 
-                this.calculateEntityAnimation(false);
+//                this.calculateEntityAnimation(false);
                 this.tryCheckInsideBlocks();
             }
             // Handle non-riding movement
@@ -901,7 +947,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
             }
         } else {
             // Return to defaults
-            this.setNoGravity(false);
+//            this.setNoGravity(false);
             this.noPhysics = false;
         }
     }
@@ -956,7 +1002,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         return new Vec3(strafing, vertical, forward).normalize();
     }
 
-    public void calculateMountMovementSimple(Vec3 travelVector, float speed, Vec3 friction) {
+    public void calculateMountMovementSimple(Vec3 travelVector, float speed, Vec3 friction, Vec3 pTravelVector) {
         this.moveRelative(speed, travelVector); // speed: blocks per tick
         this.move(MoverType.SELF, this.getDeltaMovement());
 
@@ -965,6 +1011,11 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
             currentMotion = new Vec3(currentMotion.x, 0.1D, currentMotion.z);
         }
         this.setDeltaMovement(currentMotion);
+
+//        double gravity = this.getAttribute(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()).getValue();
+//        boolean isFalling = this.getDeltaMovement().y <= 0.0D;
+//        Vec3 fluidAdjustedMovement = getFluidFallingAdjustedMovement(gravity, isFalling, this.getDeltaMovement());
+//        this.setDeltaMovement(fluidAdjustedMovement);
 
         // apply custom friction
         // Vanilla travel has a smaller friction factor for Y axis
@@ -984,14 +1035,71 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
         this.setRot(vec2.y, vec2.x);
         this.yRotO = this.yBodyRot = this.yHeadRot = this.getYRot();
         // non-movement rider action can be put here
-//        if (this.isControlledByLocalInstance()) {
+        if (this.isControlledByLocalInstance()) {
 //            Vec3 vec3 = this.getDeltaMovement();
 //            float vertical = this.isGoingUp() ? 0.2F : this.isGoingDown() ? -0.2F : 0F;
 //            if (!this.isFlying() && !this.isHovering()) {
 //                vertical = (float) travelVector.y;
 //            }
 //            this.setDeltaMovement(vec3.add(0, vertical, 0));
-//        }
+        }
+        // following code is execute on both side for compatibility
+        isOverAir = this.isOverAirLogic();
+        if (this.isGoingUp()) {
+//            if (this.airBorneCounter == 0) {
+//                this.setDeltaMovement(this.getDeltaMovement().add(0, 0.02F, 0));
+//            }
+            if (!this.isFlying() && !this.isHovering()) {
+                this.spacebarTicks += 2;
+            }
+        } else if (this.dismountIAF()) {
+            if (this.isFlying() || this.isHovering()) {
+                this.setFlying(false);
+                this.setHovering(false);
+            }
+        }
+        if (this.spacebarTicks > 0) {
+            this.spacebarTicks--;
+        }
+        if (this.spacebarTicks > 10 && this.getOwner() != null
+                && this.getPassengers().contains(this.getOwner())
+                && !this.isFlying() && !this.isHovering() && !this.isInWater()) {
+            this.setHovering(true);
+        }
+        if (this.isVehicle() && this.isGoingDown() && this.onGround()) {
+            this.setHovering(false);
+            this.setFlying(false);
+        }
+
+        if (this.attack() && this.getControllingPassenger() != null && this.getControllingPassenger() instanceof Player) {
+
+            LivingEntity target = DragonUtils.riderLookingAtEntity(this,
+                                                                   (Player) this.getControllingPassenger(),
+                                                                   3
+            );
+            if (this.getAnimation() != ANIMATION_BITE && this.getAnimation() != ANIMATION_SCRATCH) {
+                this.setAnimation(this.getRandom().nextBoolean() ? ANIMATION_SCRATCH : ANIMATION_BITE);
+            }
+            if (target != null && this.getAnimationTick() >= 10 && this.getAnimationTick() < 13) {
+                target.hurt(this.level().damageSources().mobAttack(this),
+                            ((int) this.getAttribute(Attributes.ATTACK_DAMAGE).getValue())
+                );
+            }
+        }
+        if (this.getControllingPassenger() != null && this.getControllingPassenger().isShiftKeyDown()) {
+            this.getControllingPassenger().stopRiding();
+        }
+        double motion = this.getDeltaMovement().x * this.getDeltaMovement().x + this.getDeltaMovement().z * this.getDeltaMovement().z;//Use squared norm2
+
+        if (this.isFlying() && !this.isHovering() && this.getControllingPassenger() != null && this.isOverAir() && motion < 0.01F) {
+            this.setHovering(true);
+            this.setFlying(false);
+        }
+        if (this.isHovering() && !this.isFlying() && this.getControllingPassenger() != null && this.isOverAir() && motion > 0.01F) {
+            this.setFlying(true);
+            this.setHovering(false);
+        }
+
     }
 
     @Override
@@ -1184,10 +1292,6 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
             this.setFlying(false);
             this.setHovering(false);
         }
-        if (this.isVehicle() && this.isGoingDown() && this.onGround()) {
-            this.setHovering(false);
-            this.setFlying(false);
-        }
         if ((!level().isClientSide && this.getRandom().nextInt(FLIGHT_CHANCE_PER_TICK) == 0 && !this.isOrderedToSit() && !this.isFlying() && this.getPassengers().isEmpty() && !this.isBaby() && !this.isHovering() && !this.isOrderedToSit() && this.canMove() && !this.isOverAir() || this.getY() < -1)) {
             this.setHovering(true);
             this.hoverTicks = 0;
@@ -1207,54 +1311,7 @@ public class EntityHippogryph extends TamableAnimal implements ISyncMount, IAnim
     public void tick() {
         super.tick();
         isOverAir = this.isOverAirLogic();
-        if (this.isGoingUp()) {
-            if (this.airBorneCounter == 0) {
-                this.setDeltaMovement(this.getDeltaMovement().add(0, 0.02F, 0));
-            }
-            if (!this.isFlying() && !this.isHovering()) {
-                this.spacebarTicks += 2;
-            }
-        } else if (this.dismountIAF()) {
-            if (this.isFlying() || this.isHovering()) {
-                this.setFlying(false);
-                this.setHovering(false);
-            }
-        }
-        if (this.attack() && this.getControllingPassenger() != null && this.getControllingPassenger() instanceof Player) {
-
-            LivingEntity target = DragonUtils.riderLookingAtEntity(this,
-                                                                   (Player) this.getControllingPassenger(),
-                                                                   3
-            );
-            if (this.getAnimation() != ANIMATION_BITE && this.getAnimation() != ANIMATION_SCRATCH) {
-                this.setAnimation(this.getRandom().nextBoolean() ? ANIMATION_SCRATCH : ANIMATION_BITE);
-            }
-            if (target != null && this.getAnimationTick() >= 10 && this.getAnimationTick() < 13) {
-                target.hurt(this.level().damageSources().mobAttack(this),
-                            ((int) this.getAttribute(Attributes.ATTACK_DAMAGE).getValue())
-                );
-            }
-        }
-        if (this.getControllingPassenger() != null && this.getControllingPassenger().isShiftKeyDown()) {
-            this.getControllingPassenger().stopRiding();
-        }
-
-        double motion = this.getDeltaMovement().x * this.getDeltaMovement().x + this.getDeltaMovement().z * this.getDeltaMovement().z;//Use squared norm2
-
-        if (this.isFlying() && !this.isHovering() && this.getControllingPassenger() != null && this.isOverAir() && motion < 0.01F) {
-            this.setHovering(true);
-            this.setFlying(false);
-        }
-        if (this.isHovering() && !this.isFlying() && this.getControllingPassenger() != null && this.isOverAir() && motion > 0.01F) {
-            this.setFlying(true);
-            this.setHovering(false);
-        }
-        if (this.spacebarTicks > 0) {
-            this.spacebarTicks--;
-        }
-        if (this.spacebarTicks > 10 && this.getOwner() != null && this.getPassengers().contains(this.getOwner()) && !this.isFlying() && !this.isHovering()) {
-            this.setHovering(true);
-        }
+        // riding logic has moved to tickRidden
         if (this.getTarget() != null && this.getVehicle() == null && !this.getTarget().isAlive() || this.getTarget() != null && this.getTarget() instanceof EntityDragonBase && !this.getTarget().isAlive()) {
             this.setTarget(null);
         }

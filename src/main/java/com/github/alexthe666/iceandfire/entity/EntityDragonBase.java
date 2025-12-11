@@ -74,6 +74,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -82,11 +83,13 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraftforge.fluids.FluidType;
 import net.minecraftforge.items.wrapper.InvWrapper;
 import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.NotNull;
@@ -1007,14 +1010,13 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         if (this.getAgeInDays() <= 125) age = this.getAgeInDays();
         final double healthStep = (maximumHealth - minimumHealth) / 125F;
         final double attackStep = (maximumDamage - minimumDamage) / 125F;
-        final double speedStep = (maximumSpeed - minimumSpeed) / 125F;
+        final double speedStep = (maximumSpeed - minimumSpeed) / 125F; // 0.15 - 0.4, value defined in respective constructor
         final double armorStep = (maximumArmor - minimumArmor) / 125F;
 
         this.getAttribute(Attributes.MAX_HEALTH).setBaseValue(Math.round(minimumHealth + (healthStep * age)));
         this.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(Math.round(minimumDamage + (attackStep * age)));
         this.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(minimumSpeed + (speedStep * age));
-        final double baseValue = minimumArmor + (armorStep * this.getAgeInDays());
-        this.getAttribute(Attributes.ARMOR).setBaseValue(baseValue);
+        this.getAttribute(Attributes.ARMOR).setBaseValue(minimumArmor + (armorStep * this.getAgeInDays()));
         if (!this.level().isClientSide) {
             this.getAttribute(Attributes.ARMOR).removeModifier(ARMOR_MODIFIER_UUID);
             this.getAttribute(Attributes.ARMOR).addPermanentModifier(new AttributeModifier(ARMOR_MODIFIER_UUID,
@@ -1024,6 +1026,18 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             ));
         }
         this.getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(Math.min(2048, IafConfig.dragonTargetSearchLength));
+        final double minimumStepup = 1.2f;
+        final double maximumStepup = 3.0f;
+        final double stepHeightStep = (maximumStepup - minimumStepup) / 100f;
+        // step height start to increase from 25 days, reaches max at 125 days
+        // forge automatically adds vanillaStepup to the final value, typically 0.6, see IForgeEntity#getStepHeight
+        this.getAttribute(ForgeMod.STEP_HEIGHT.get())
+                .setBaseValue(Math.max(minimumStepup,
+                                       minimumStepup + (stepHeightStep * (Math.min(
+                                               this.getAgeInDays(),
+                                               125
+                                       ) - 25)) - this.maxUpStep()
+                ));
     }
 
     public int getHunger() {
@@ -1880,8 +1894,11 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     }
 
     @Override
+    @Deprecated
+    // for debug only
     public float getStepHeight() {
-        return Math.max(1.2F, 1.2F + (Math.min(this.getAgeInDays(), 125) - 25) * 1.8F / 100F);
+        return super.getStepHeight();
+//        return Math.max(1.2F, 1.2F + (Math.min(this.getAgeInDays(), 125) - 25) * 1.8F / 100F);
     }
 
     @Override
@@ -1891,7 +1908,6 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         updateParts();
         this.prevDragonPitch = getDragonPitch();
         level().getProfiler().push("dragonLogic");
-        this.setMaxUpStep(getStepHeight());
         isOverAir = isOverAirLogic();
         logic.updateDragonCommon();
         if (this.isModelDead()) {
@@ -1976,6 +1992,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return Math.min(this.getRenderSize() * 0.35F, 7F);
     }
 
+    // FIXME :: nullify this method will cause Entity#wasTouchingWater flag fail to update, which means super.isInWater will always return false, result in no water splashes in water
     @Override
     protected void checkFallDamage(double y, boolean onGroundIn, @NotNull BlockState state, @NotNull BlockPos pos) {
     }
@@ -2185,10 +2202,17 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return this.getHealth() <= 0.0F || isOrderedToSit() && !this.isVehicle() || this.isModelDead() || this.isPassenger();
     }
 
+    // FIXME :: see EntityDragonBase#checkFallDamage
+    // override to 1.regular walk in shallow water, 2.auto float in correct depth
     @Override
     public boolean isInWater() {
-        return super.isInWater() && this.getFluidHeight(FluidTags.WATER) > Mth.floor(this.getDragonStage() / 2.0f);
+        return this.getFluidHeight(FluidTags.WATER) > Mth.floor(this.getDragonStage() / 2.0f);
     }
+
+//    @Override
+//    public boolean isInLava() {
+//        return this.getFluidHeight(FluidTags.LAVA) > Mth.floor(this.getDragonStage() / 2.0f);
+//    }
 
     public boolean allowLocalMotionControl = true;
     public boolean allowMousePitchControl = true;
@@ -2198,13 +2222,49 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         return glidingSpeedBonus;
     }
 
+    @Override
+    public boolean moveInFluid(FluidState state, Vec3 movementVector, double gravity) {
+        return super.moveInFluid(state, movementVector, gravity);
+    }
+
+    @Override
+    public boolean canStandOnFluid(FluidState pFluidState) {
+        return super.canStandOnFluid(pFluidState);
+    }
+
+    @Override
+    public boolean isInFluidType(FluidType type) {
+        if (type == ForgeMod.WATER_TYPE.get()) {
+            return this.isInWater();
+        } else {
+            return super.isInFluidType(type);
+        }
+    }
+
+    /**
+     * shallow fluid no longer effect movements
+     * while overriding isInWater/Lava could work, some mechanism breaks like damage and auto float
+     * isInFluidType works for water, but lava do not have this check
+     *
+     * @return whether movement is slowed by fluid
+     */
+    @Override
+    protected boolean isAffectedByFluids() {
+        if (this.isInLava() && !(this.getFluidHeight(FluidTags.LAVA) > Mth.floor(this.getDragonStage() / 2.0f))) {
+            return false;
+        }
+        return super.isAffectedByFluids();
+    }
+
     protected float glidingSpeedBonus = 0;
 
     // speed modifiers on Attributes.MOVEMENT_SPEED to match speed in older versions
     // TODO :: put this into config
     protected float flightSpeedMod = 0.52f;
     protected float swimSpeedMod = 1.0f;
-    protected float walkSpeedMod = 0.52f;
+    protected float walkSpeedMod = 0.7f;
+    protected float swimSpeedModIceDragon = 0.7f;
+    protected float swimSpeedModFireDragon = 0.7f;
 
     @Override
     public void travel(@NotNull Vec3 pTravelVector) {
@@ -2224,6 +2284,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 return;
             }
 
+            // this value is modified in updateAttribute for speeding with age
             float speed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED); // 0.3
             // target movement input
             float strafing = rider.xxa;
@@ -2231,24 +2292,28 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             float vertical = 0f;
             Vec3 travelVector = pTravelVector;
             // Flying control, include flying through waterfalls
+            /*
+            Dragon flying behavior
+            1. start in hover mode, same as hippogryph
+            2. ctrl to glide, same as amphithere
+             */
             if (isHovering() || isFlying()) {
                 // TODO :: there's this config item IafConfig.dragonFlightSpeedMod
                 // TODO :: age speed difference
                 speed *= flightSpeedMod;
-                speed *= rider.isSprinting() ? 1.2f : 1.0f;
-
+                speed *= this.isSprinting() ? 1.25f : 1f;
                 gliding = allowMousePitchControl && this.isSprinting();
                 if (!gliding) {
                     // Mouse controlled yaw
                     // Slower on going astern
-                    forward *= rider.zza > 0 ? 1.0f : 0.5f;
+                    forward *= rider.zza > 0 ? 1.0f : 0.55f;
                     // Slower on going sideways
-                    strafing *= 0.3f;
+                    strafing *= 0.45f;
 
                     if (isGoingUp() && !isGoingDown()) {
-                        vertical = 0.8f;
+                        vertical = 0.75f;
                     } else if (isGoingDown() && !isGoingUp()) {
-                        vertical = -0.8f;
+                        vertical = -0.75f;
                     }
 
                     travelVector = new Vec3(strafing, vertical, forward);
@@ -2259,7 +2324,7 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     // Diving is faster
                     // Remember to change PlayerRenderEvents#computeFovModifierEvent when changing max bonus
                     glidingSpeedBonus = (float) Mth.clamp(glidingSpeedBonus + this.getDeltaMovement().y * -0.05d,
-                                                          -0.8d,
+                                                          -1.5d,
                                                           1.5d
                     );
 
@@ -2292,7 +2357,10 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 speed += glidingSpeedBonus * 0.1f;
                 // Speed bonus damping
                 glidingSpeedBonus -= glidingSpeedBonus * (travelVector.lengthSqr() > 0.25d ? 0.01f : 0.2f);
-
+                // w and s key for minor speed control
+                travelVector = travelVector.scale(
+                        rider.zza > 1e-5f ? 1f : rider.zza < -1e-5f ? 0.8f : 0.9f
+                );
 
                 // Travel related logic and flags
                 // Set flag for logic and animation
@@ -2314,15 +2382,15 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             }
             // In water move control, for those that can't swim
             else if (isInWater() || isInLava()) {
-                // TODO :: keep some momentum for water
+                // TODO :: keep some momentum for water, for ice dragon
                 glidingSpeedBonus = 0;
 
                 speed *= swimSpeedMod;
 
                 if (isGoingUp() && !isGoingDown()) {
-                    vertical = 0.5f;
+                    vertical = 1f;
                 } else if (isGoingDown() && !isGoingUp()) {
-                    vertical = -0.5f;
+                    vertical = -1f;
                 }
 
                 travelVector = new Vec3(strafing, vertical, forward);
@@ -2338,9 +2406,9 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                 // Inherit y motion, as vanilla does
                 vertical = (float) pTravelVector.y;
                 // Slower going back
-                forward *= rider.zza > 0 ? 1.0f : 0.2f;
+                forward *= rider.zza > 0 ? 1.0f : 0.5f;
                 // Slower going sideway
-                strafing *= 0.05f;
+                strafing *= 0.35f;
 
                 travelVector = new Vec3(strafing, vertical, forward);
             }
@@ -2348,7 +2416,8 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             if (this.isControlledByLocalInstance()) {
                 calculateMountMovementSimple(travelVector, speed, pTravelVector);
 
-                this.calculateEntityAnimation(false);
+                // animation is calc in aiStep, travelRidden, addition call to calculateEntityAnimation will cause double speed
+//                this.calculateEntityAnimation(false);
             } else {
                 this.setDeltaMovement(Vec3.ZERO);
             }
@@ -2380,15 +2449,33 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
         }
         // In water move control, for those that can't swim
         else if (isInWater() || isInLava()) {
-            // FIXME :: code below from vanilla, what for?
+            // FIXME :: behavior incorrect for walking in shallow water and in water, for all dragons
             // Float in water for those can't swim is done in LivingEntity#aiStep on server side
             // Leave this handled by both side before we have a better solution
-            this.setSpeed(speed);
+            // do not call setSpeed, this will call setZza, result in movement without input
+            // 如果无输入出现滑步现象，检查setSpeed误用
+//            this.setSpeed(speed);
             // Overwrite the zza in setSpeed
 //            this.setZza((float) forward);
             // Vanilla in water behavior includes float on water and moving very slow
             // in lava behavior includes moving slow and sink
-            super.travel(pTravelVector.add(travelVector));
+            super.travel(travelVector);
+
+            // auto float && assist floating
+            if (this.isInWater() && !this.isGoingDown()
+                    && (!this.isEyeInFluidType(ForgeMod.WATER_TYPE.get()) || this.isGoingUp())) {
+                this.setDeltaMovement(this.getDeltaMovement().x,
+                                      this.getDeltaMovement().y + 0.02D,
+                                      this.getDeltaMovement().z
+                );
+            }
+            if (this.isInLava() && !this.isGoingDown() && this.isGoingUp()) {
+                this.setDeltaMovement(this.getDeltaMovement().x,
+                                      this.getDeltaMovement().y + 0.02D,
+                                      this.getDeltaMovement().z
+                );
+            }
+
         }
         // Walking control
         else {
@@ -2487,8 +2574,8 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
                     this.setFlying(false);
                     this.setHovering(true);
                 }
-                // Hitting terrain with big angle of attack
-                if (!this.isOverAir() && this.isFlying() && rider.getXRot() > 10 && !this.isInWater()) {
+                // hit into terrain will cause dragon to land
+                if (!this.isOverAir() && this.isFlying() && !this.isGoingUp() && rider.getXRot() > 10 && !this.isInWater()) {
                     this.setHovering(false);
                     this.setFlying(false);
                 }

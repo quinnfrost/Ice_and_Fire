@@ -1,5 +1,6 @@
 package com.github.alexthe666.iceandfire.event;
 
+import com.github.alexthe666.iceandfire.entity.EntityAmphithere;
 import com.github.alexthe666.iceandfire.entity.EntityDragonBase;
 import com.github.alexthe666.iceandfire.item.IafItemRegistry;
 import com.mojang.math.Axis;
@@ -107,15 +108,26 @@ public class PlayerRenderEvents {
         if (player.getVehicle() instanceof EntityDragonBase dragon) {
             // vanilla sprinting has a fov mod of 1.15, and is applied here
             if (dragon.isFlying() || dragon.isHovering()) {
-                event.setNewFovModifier(1f + Mth.map(
-                        Math.max(dragon.getSpeed(), 0),
-                        0.15f,
-                        0.35f,
-                        0f,
-                        0.5f
+                event.setNewFovModifier(1f + (float) Mth.map(
+                        Math.max(dragon.getDeltaMovement().lengthSqr(), 0d),
+                        1*1d,
+                        3*3d,
+                        0d,
+                        0.85d
+                ));
+            }
+        } else if (player.getVehicle() instanceof EntityAmphithere amphithere) {
+            if (amphithere.isFlying() || amphithere.isHovering()) {
+                event.setNewFovModifier(1f + (float) Mth.map(
+                        Math.max(amphithere.getDeltaMovement().lengthSqr(), 0d),
+                        0.45*0.45d,
+                        2.2*2.2d,
+                        0d,
+                        0.85d
                 ));
             }
         }
+
 
     }
 
