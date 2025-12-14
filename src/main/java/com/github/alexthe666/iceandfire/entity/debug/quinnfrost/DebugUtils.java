@@ -170,8 +170,12 @@ public class DebugUtils {
     }
 
     public static <T> Optional<T> getMemoryItem(Mob mob, MemoryModuleType<T> memoryModuleType) {
-        if (hasMemoryItem(mob)) {
-            return mob.getBrain().getMemory(memoryModuleType);
+        try {
+            if (hasMemoryItem(mob)) {
+                return mob.getBrain().getMemory(memoryModuleType);
+            }
+        } catch (RuntimeException ignored) {
+
         }
         return Optional.empty();
     }

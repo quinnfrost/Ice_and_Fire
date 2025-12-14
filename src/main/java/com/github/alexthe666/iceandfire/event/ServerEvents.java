@@ -54,6 +54,7 @@ import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.AbstractChestBlock;
@@ -420,6 +421,14 @@ public class ServerEvents {
     @SubscribeEvent
     public void onEntityDie(LivingDeathEvent event) {
         EntityDataProvider.getCapability(event.getEntity()).ifPresent(data -> {
+
+            // for debug
+            if (event.getEntity() instanceof ServerPlayer player && player.getInventory().contains(new ItemStack(IafItemRegistry.DRAGON_DEBUG_STICK.get()))) {
+               player.setGameMode(GameType.SPECTATOR);
+               player.setHealth(player.getMaxHealth());
+               event.setCanceled(true);
+            }
+
             if (event.getEntity().level().isClientSide()) {
                 return;
             }
