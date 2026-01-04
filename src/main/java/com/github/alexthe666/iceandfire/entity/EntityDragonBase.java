@@ -2259,7 +2259,6 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
     protected float glidingSpeedBonus = 0;
 
     // speed modifiers on Attributes.MOVEMENT_SPEED to match speed in older versions
-    // TODO :: put this into config
     protected float flightSpeedMod = 0.52f;
     protected float swimSpeedMod = 1.0f;
     protected float walkSpeedMod = 0.7f;
@@ -2292,14 +2291,8 @@ public abstract class EntityDragonBase extends TamableAnimal implements IPassabi
             float vertical = 0f;
             Vec3 travelVector = pTravelVector;
             // Flying control, include flying through waterfalls
-            /*
-            Dragon flying behavior
-            1. start in hover mode, same as hippogryph
-            2. ctrl to glide, same as amphithere
-             */
             if (isHovering() || isFlying()) {
-                // TODO :: there's this config item IafConfig.dragonFlightSpeedMod
-                // TODO :: age speed difference
+                speed *= (float) IafConfig.dragonFlightSpeedMod;
                 speed *= flightSpeedMod;
                 speed *= this.isSprinting() ? 1.25f : 1f;
                 gliding = allowMousePitchControl && this.isSprinting();

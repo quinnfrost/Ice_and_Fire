@@ -1065,6 +1065,7 @@ public class EntityAmphithere extends TamableAnimal implements ISyncMount, IAnim
 
             // air control
             if (isHovering() || isFlying()) {
+                speed *= (float) IafConfig.dragonFlightSpeedMod;
                 speed *= flightSpeedMod; // flight speed factor
                 speed *= this.isSprinting() ? 1.4f : 1.0f;
                 gliding = allowMousePitchControl && this.isSprinting();
